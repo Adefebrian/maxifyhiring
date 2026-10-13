@@ -29,6 +29,8 @@ const paths = {
   reset: "M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4",
   close: "M6 6l12 12M18 6L6 18",
   info: "M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18zM12 11v5M12 7.5v.01",
+  rule: "M4 6h16M4 12h16M4 18h10",
+  link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
 } as const;
 
 export type GlyphName = keyof typeof paths;

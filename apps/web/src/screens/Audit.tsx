@@ -1,11 +1,13 @@
 // Screen 5, Audit. Concepts (ui.region_gate):
 //   toolbar  card  decided-by and verification segmented filters, stage select, count, Export JSON
-//   table    rows  every routing decision; a DataTable from 1024px, stacked records below
+//   table    rows  every routing decision grouped by application (name and id once,
+//                  a sub-row per stage); seal and confidence side by side; a DataTable
+//                  from 1024px, stacked records below
 import { useMemo, useState } from "react";
 import type { Api, Decision } from "../api";
-import { confidence, DECIDED_BY_LABEL, decisionLabel, fmtDayTime, plural, STAGE_LABEL } from "../format";
+import { confidence, decisionLabel, fmtDayTime, plural, sealOf, STAGE_LABEL, topHits } from "../format";
 import { Glyph } from "../icons";
-import { Badge, Empty, Linkify, LoadError, PageHeader, SkeletonRows, StampBadge, useLoad } from "../parts";
+import { Empty, Linkify, LoadError, PageHeader, Seal, SkeletonRows, useLoad } from "../parts";
 
 const BY = [
   { v: "", label: "All" },
@@ -19,7 +21,7 @@ const VERIFIED = [
   { v: "false", label: "Unverified" },
 ];
 const STAGES = ["validation", "dedupe", "route", "schedule", "human"];
-const PAGE = 30;
+const PAGE = 15;
 
 export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: string; stage?: string; verified?: string } }) {
   const [decidedBy, setDecidedBy] = useState(initial.decidedBy ?? "");
@@ -32,8 +34,20 @@ export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: strin
   };
   const load = useLoad(() => api.audit({ decidedBy, stage, verified }), key);
   const items = useMemo(() => load.data?.items ?? [], [load.data]);
+  // Consecutive rows of one application read as one group: name and id once,
+  // then a sub-row per stage.
+  const groups = useMemo(() => {
+    const out: { appId: string; name: string; rows: Decision[] }[] = [];
+    for (const d of items) {
+      const last = out[out.length - 1];
+      if (last && last.appId === d.appId) last.rows.push(d);
+      else out.push({ appId: d.appId, name: d.name ?? d.appId, rows: [d] });
+    }
+    return out;
+  }, [items]);
   const [shown, setShown] = useState(PAGE);
-  const visible = items.slice(0, shown);
+  const visible = groups.slice(0, shown);
+  const visibleRows = visible.reduce((n, g) => n + g.rows.length, 0);
 
   function exportJson() {
     const payload = { exportedAt: new Date().toISOString(), filters: { decidedBy: decidedBy || "all", stage: stage || "all", verified: verified || "all" }, count: items.length, items };
@@ -50,7 +64,7 @@ export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: strin
 
   return (
     <div className="page">
-      <PageHeader title="Audit" line="Every routing decision the agent made, who made it, whether JEV verified it, and the reason on record." />
+      <PageHeader title="Audit" line="Every routing decision the agent made, who made it, whether JEV verified it or abstained, and the reason on record." />
 
       <section className="card audit-tools" aria-label="Filter decisions">
         <div className="audit-filters">
@@ -104,27 +118,34 @@ export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: strin
       {items.length > 0 ? (
         <div className="list audit-table" role="table" aria-label="Routing decisions" aria-busy={load.loading ? true : undefined}>
           <div className="audit-head" role="row">
-            <span role="columnheader">Applicant</span>
-            <span role="columnheader">Stage</span>
-            <span role="columnheader">Decided by</span>
-            <span role="columnheader">Verification</span>
-            <span role="columnheader" className="num-col">
-              Confidence
-            </span>
+            <span role="columnheader">Stage and decision</span>
+            <span role="columnheader">Seal and confidence</span>
             <span role="columnheader">Reason</span>
           </div>
-          {visible.map((d) => (
-            <AuditRow d={d} key={d.id} />
+          {visible.map((g) => (
+            <div className="audit-group" role="rowgroup" key={`${g.appId}-${g.rows[0]!.id}`}>
+              <div className="audit-app" role="row">
+                <span role="rowheader">
+                  <a className="rec-title link-quiet" href={`#/app/${g.appId}`}>
+                    {g.name}
+                  </a>{" "}
+                  <span className="rec-meta num">{g.appId}</span>
+                </span>
+              </div>
+              {g.rows.map((d) => (
+                <AuditRow d={d} key={d.id} />
+              ))}
+            </div>
           ))}
         </div>
       ) : null}
-      {items.length > visible.length ? (
+      {groups.length > visible.length ? (
         <div className="more">
           <p className="toolbar-count">
-            Showing {visible.length} of {items.length}. Export includes all {items.length}.
+            Showing {visibleRows} of {items.length}. Export includes all {items.length}.
           </p>
           <button type="button" className="btn-secondary" onClick={() => setShown((n) => n + PAGE)}>
-            Show {Math.min(PAGE, items.length - visible.length)} more
+            Show more
           </button>
         </div>
       ) : null}
@@ -133,34 +154,24 @@ export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: strin
 }
 
 function AuditRow({ d }: { d: Decision }) {
+  const hits = topHits(d.ruleHits, 8);
   return (
     <div className="audit-row" role="row">
-      <span className="audit-who" role="cell">
-        <a className="rec-title link-quiet" href={`#/app/${d.appId}`}>
-          {d.name ?? d.appId}
-        </a>
-        <span className="rec-meta num">{d.appId}</span>
+      <span className="audit-stage" role="cell">
+        <span className="audit-stage-title">
+          {STAGE_LABEL[d.stage] ?? d.stage}: {decisionLabel(d.decision)}
+        </span>
         <span className="rec-meta num nowrap">{fmtDayTime(d.at)} WIB</span>
       </span>
-      <span className="audit-stage" role="cell">
-        <span className="audit-label">Stage </span>
-        {STAGE_LABEL[d.stage] ?? d.stage}: {decisionLabel(d.decision)}
-      </span>
-      <span className="audit-by" role="cell">
-        <Badge>{DECIDED_BY_LABEL[d.decidedBy] ?? d.decidedBy}</Badge>
-      </span>
-      <span className="audit-stamp" role="cell">
-        <StampBadge verified={d.verified} stamp={d.stamp} />
-      </span>
-      <span className="audit-conf num num-col" role="cell">
-        <span className="audit-label">Confidence </span>
-        {confidence(d.confidence)}
+      <span className="audit-seal" role="cell">
+        <Seal d={d} />
+        {sealOf(d) !== "abstained" ? <span className="audit-conf num">{confidence(d.confidence)}</span> : null}
       </span>
       <span className="audit-reason" role="cell">
         <Linkify text={d.reason} />
-        {d.ruleHits.length ? (
+        {hits.length ? (
           <span className="tokens">
-            {d.ruleHits.map((h) => (
+            {hits.map((h) => (
               <span className="token" key={h}>
                 {h}
               </span>

@@ -1,12 +1,13 @@
 // Screen 3, Schedule. Concepts (ui.region_gate):
 //   clock  card             the sim clock and the controls that move it
-//   week   card             each interviewer's working week: busy blocks and booked interviews (DataTable)
+//   week   card             each interviewer's working week: busy blocks and booked interviews (DataTable
+//                            from 640px; a day picker plus a day agenda below 640px)
 //   lists  divided-section  upcoming, done, and no-show interviews
 import { useMemo, useState } from "react";
 import type { Api, Interview, Schedule as ScheduleData } from "../api";
 import { fmtDay, fmtDayTime, fmtTime, isWeekend, plural, wibDate } from "../format";
 import { Glyph } from "../icons";
-import { LoadError, Notice, SkeletonRows, useLoad } from "../parts";
+import { Badge, LoadError, Notice, SkeletonRows, useLoad } from "../parts";
 
 const STEPS = [
   { hours: 1, label: "+1 hour" },
@@ -125,7 +126,9 @@ export function Schedule({ api, onChanged }: { api: Api; onChanged: () => void }
         {!data ? (
           <SkeletonRows rows={6} label="Loading the week" />
         ) : (
-          <div className="scroll-x week-scroll" tabIndex={0} aria-label="Interviewer week, scrolls sideways">
+          <>
+          <Agenda data={data} days={days} />
+          <div className="scroll-x week-scroll week-wide" tabIndex={0} aria-label="Interviewer week">
             <table className="table week-table">
               <thead>
                 <tr>
@@ -156,14 +159,14 @@ export function Schedule({ api, onChanged }: { api: Api; onChanged: () => void }
                             {blocks.map((b, i) => (
                               <span className="slot" data-kind="busy" key={`b${i}`}>
                                 <span className="slot-label">{b.label}</span>
-                                <span className="slot-time num">{blockTime(b.start, b.end, s, e)}</span>
+                                <span className="slot-time num">Busy, {blockTime(b.start, b.end, s, e)}</span>
                               </span>
                             ))}
                             {ivs.map((i) => (
                               <a className="slot" data-kind="interview" data-status={i.status} key={i.id} href={`#/app/${i.appId}`}>
                                 <span className="slot-label">{i.name ?? i.appId}</span>
                                 <span className="slot-time num">
-                                  {fmtTime(i.start)}
+                                  Interview, {fmtTime(i.start)}
                                   {i.status === "done" ? ", done" : i.status === "no_show" ? ", no-show" : ""}
                                 </span>
                               </a>
@@ -177,10 +180,11 @@ export function Schedule({ api, onChanged }: { api: Api; onChanged: () => void }
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
 
-      <section className="band band-divided band-stack" aria-label="Interviews by status">
+      <section className="band band-stack" aria-label="Interviews by status">
         {groups.map((g) => (
           <div className="sub-band" key={g.key}>
             <h2>
@@ -201,6 +205,86 @@ export function Schedule({ api, onChanged }: { api: Api; onChanged: () => void }
           </div>
         ))}
       </section>
+    </div>
+  );
+}
+
+interface AgendaRow {
+  key: string;
+  start: number;
+  time: string;
+  title: string;
+  who: string;
+  href?: string;
+  status: "busy" | "scheduled" | "done" | "no_show";
+}
+
+const STATUS_LABEL: Record<AgendaRow["status"], string> = { busy: "Busy", scheduled: "Interview", done: "Done", no_show: "No-show" };
+
+/** Below 640px the week becomes a day agenda: a day picker, then one row per
+ * interview or busy block (time, candidate or block, interviewer, status). */
+function Agenda({ data, days }: { data: ScheduleData; days: string[] }) {
+  const firstWithInterviews = days.find((d) => data.interviews.some((i) => wibDate(i.start) === d)) ?? days[0] ?? "";
+  const [picked, setPicked] = useState<string | null>(null);
+  const day = picked && days.includes(picked) ? picked : firstWithInterviews;
+  const s = dayStart(day);
+  const e = s + DAY;
+  const rows: AgendaRow[] = [];
+  for (const p of data.interviewers) {
+    for (const b of p.busy) {
+      if (Date.parse(b.start) < e && Date.parse(b.end) > s) {
+        rows.push({ key: `b-${p.id}-${b.start}`, start: Math.max(Date.parse(b.start), s), time: blockTime(b.start, b.end, s, e), title: b.label, who: p.name, status: "busy" });
+      }
+    }
+  }
+  for (const i of data.interviews) {
+    if (wibDate(i.start) !== day) continue;
+    rows.push({ key: `i-${i.id}`, start: Date.parse(i.start), time: `${fmtTime(i.start)} to ${fmtTime(i.end)}`, title: i.name ?? i.appId, who: i.interviewerName, href: `#/app/${i.appId}`, status: i.status });
+  }
+  rows.sort((a, b) => a.start - b.start || a.who.localeCompare(b.who));
+  return (
+    <div className="agenda">
+      <div className="day-picker" role="group" aria-label="Pick a day">
+        {days.map((d) => {
+          const label = fmtDay(`${d}T05:00:00Z`);
+          const [wd, dn] = label.split(" ");
+          return (
+            <button key={d} type="button" className="btn-secondary day-btn" aria-pressed={d === day} aria-label={label} onClick={() => setPicked(d)}>
+              <span className="day-wd">{wd}</span>
+              <span className="day-dn num">{dn}</span>
+            </button>
+          );
+        })}
+      </div>
+      {rows.length === 0 ? (
+        <p className="band-empty">Nothing booked on {fmtDay(`${day}T05:00:00Z`)}. Every interviewer is free.</p>
+      ) : (
+        <ul className="list">
+          {rows.map((r) => {
+            const body = (
+              <>
+                <span className="log-time">{r.time}</span>
+                <span className="row-main">
+                  <span className="row-title">{r.title}</span>
+                  <span className="row-meta">{r.status === "busy" ? `${r.who} is busy` : `with ${r.who}`}</span>
+                </span>
+                <Badge tone={r.status === "done" ? "success" : r.status === "no_show" ? "danger" : "neutral"}>{STATUS_LABEL[r.status]}</Badge>
+              </>
+            );
+            return (
+              <li key={r.key}>
+                {r.href ? (
+                  <a className="row agenda-row row-link" href={r.href}>
+                    {body}
+                  </a>
+                ) : (
+                  <div className="row agenda-row">{body}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

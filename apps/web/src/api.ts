@@ -95,7 +95,25 @@ export interface Interview {
   attempt: number;
 }
 
+/** The latest non-human decision on a case, shipped with the queue and the detail. */
+export type Ruling = Omit<Decision, "name">;
+
+/** The earlier application a possible duplicate may be (open reviews only). */
+export interface Match {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  state: State;
+  submittedAt: string;
+  sameEmail: boolean;
+  samePhone: boolean;
+  nameSimilarity: number;
+}
+
 export interface Detail {
+  ruling?: Ruling | null;
+  match?: Match | null;
   app: AppDetail;
   log: LogRow[];
   decisions: Decision[];
@@ -122,7 +140,7 @@ export interface Schedule {
   grid: string[];
 }
 
-export type QueueItem = AppSummary & { actions: HumanAction[] };
+export type QueueItem = AppSummary & { actions: HumanAction[]; ruling?: Ruling | null; match?: Match | null };
 
 export class ApiError extends Error {
   constructor(

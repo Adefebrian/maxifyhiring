@@ -74,8 +74,10 @@ a {
   min-width: 0;
 }
 
+/* The case file is read top to bottom. 768 keeps the decide form (its
+   reason field fills the card) under the 640px form cap from 1024px. */
 .page-narrow {
-  max-width: 880px;
+  max-width: 768px;
 }
 
 .page :where(h1, h2, h3, p, ul, ol, dl, dd, figure) {
@@ -142,9 +144,36 @@ a {
   min-width: 0;
 }
 
+/* With a screen action the header is two columns at every width; below
+   640 the action shows as its icon alone so the records reach the fold. */
+.page-head:has(.page-actions) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.action-label {
+  display: none;
+}
+
+.page-actions .btn-secondary:has(.action-label) {
+  width: var(--control-h);
+  padding: 0;
+}
+
 @media (min-width: 640px) {
   .page-head {
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+  .page-head:has(.page-actions) {
+    align-items: end;
+  }
+  .action-label {
+    display: inline;
+  }
+  .page-actions .btn-secondary:has(.action-label) {
+    width: auto;
+    padding: 0 var(--space-16px);
   }
 }
 
@@ -324,6 +353,11 @@ a {
   white-space: nowrap;
 }
 
+.due[data-kind="soon"] {
+  color: var(--color-warning);
+  font-weight: var(--weight-medium);
+}
+
 .due[data-overdue] {
   color: var(--color-danger);
   font-weight: var(--weight-medium);
@@ -488,13 +522,26 @@ a {
 /* ---------------------------------------------------------------------
  * Pipeline
  * ------------------------------------------------------------------- */
+/* Counts. Below 640 one row of the three that need a person (waiting,
+   overdue, unverified), the rest behind a disclosure, so the first records
+   sit above the fold. From 640 every count shows and the toggle goes. */
+.stats {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
 .stat-card {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   padding: 0;
   overflow: clip;
   background: var(--color-border);
+}
+
+.stat-card:not([data-open]) > .stat[data-extra] {
+  display: none;
 }
 
 .stat {
@@ -503,7 +550,7 @@ a {
   gap: var(--space-4px);
   min-width: 0;
   min-height: var(--control-h);
-  padding: var(--space-16px);
+  padding: var(--space-12px);
   background: var(--color-surface);
   color: var(--color-ink);
   text-decoration: none;
@@ -522,9 +569,21 @@ a {
   color: var(--color-ink-muted);
 }
 
+.stats-more {
+  justify-self: start;
+  padding-inline: var(--space-8px);
+}
+
 @media (min-width: 640px) {
-  .stat-card {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .stat-card > .stat[data-extra],
+  .stat-card:not([data-open]) > .stat[data-extra] {
+    display: grid;
+  }
+  .stats-more {
+    display: none;
+  }
+  .stat {
+    padding: var(--space-16px);
   }
 }
 
@@ -541,12 +600,22 @@ a {
   display: grid;
   gap: var(--space-8px);
   min-width: 0;
-  padding-top: var(--space-24px);
-  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 640px) {
+  .toolbar {
+    padding-top: var(--space-24px);
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 .toolbar-fields .field-hint {
   display: none;
+}
+
+.page .toolbar-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8px) var(--space-12px);
 }
 
 .toolbar-count {
@@ -664,9 +733,13 @@ a {
     display: none;
   }
   .rec-owner,
-  .rec-next {
+  .rec-next,
+  .rec .due {
     font-size: var(--text-0);
     line-height: var(--line-0);
+  }
+  .rec .due .icon {
+    margin-top: var(--space-4px);
   }
   .rec-head {
     display: grid;
@@ -764,7 +837,6 @@ a {
 .decide-form {
   display: grid;
   gap: var(--space-12px);
-  max-width: 640px;
   min-width: 0;
 }
 
@@ -781,16 +853,127 @@ a {
   min-width: 0;
 }
 
-.band-divided {
-  padding-top: var(--space-24px);
-  border-top: 1px solid var(--color-border);
+.band-head {
+  display: grid;
+  gap: var(--space-4px);
 }
 
-/* The case header already ends on a hairline; a divided band right under
-   it does not draw a second one. */
-.case-head + .band-divided {
-  padding-top: 0;
-  border-top: 0;
+.band-line {
+  color: var(--color-ink-muted);
+}
+
+.decide-card {
+  display: grid;
+  gap: var(--space-20px);
+}
+
+.decide-card > .ruling-sum {
+  padding-bottom: var(--space-20px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.decide-compare {
+  padding-bottom: var(--space-20px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.link-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-12px);
+  align-items: start;
+  padding: var(--space-12px) var(--space-16px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-12);
+}
+
+.link-row > .icon {
+  margin-top: var(--space-2px);
+  color: var(--color-ink-muted);
+}
+
+.issue-list > li {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2px);
+}
+
+/* Seals: a stamp, not a pill, so a long verdict can wrap inside its box. */
+.seal-wrap {
+  display: inline-grid;
+  gap: var(--space-2px);
+  justify-items: start;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.badge.seal {
+  white-space: normal;
+  border-radius: var(--radius-8);
+}
+
+.badge.seal[data-seal="rule"],
+.badge.seal[data-seal="human"],
+.badge.seal[data-seal="routed"],
+.badge.seal[data-seal="abstained"] {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
+.seal-lean {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+/* Log and agenda rows: time first in tabular mono, then what happened. */
+.log-row,
+.agenda-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2px) var(--space-16px);
+}
+
+.log-time {
+  font-family: var(--font-mono);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink-muted);
+}
+
+.log-title {
+  font-weight: var(--weight-medium);
+}
+
+/* Agenda row: time and status on one line, then who and what. */
+.agenda-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "time status"
+    "main main";
+  align-items: center;
+}
+
+.agenda-row > .log-time {
+  grid-area: time;
+}
+
+.agenda-row > .row-main {
+  grid-area: main;
+}
+
+.agenda-row > .badge {
+  grid-area: status;
+}
+
+@media (min-width: 640px) {
+  .log-row {
+    grid-template-columns: 136px minmax(0, 1fr);
+  }
+  .log-row .log-time {
+    padding-top: var(--space-2px);
+  }
 }
 
 .ruling {
@@ -951,6 +1134,52 @@ a {
   }
 }
 
+.week-wide {
+  display: none;
+}
+
+.agenda {
+  display: grid;
+  gap: var(--space-12px);
+  min-width: 0;
+}
+
+.day-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4px);
+}
+
+.day-btn {
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  height: auto;
+  min-height: var(--control-h);
+  padding: var(--space-4px);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+}
+
+.day-btn[aria-pressed="true"] {
+  background: var(--color-layer-2);
+  border-color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.day-wd {
+  color: inherit;
+}
+
+@media (min-width: 640px) {
+  .week-wide {
+    display: block;
+  }
+  .agenda {
+    display: none;
+  }
+}
+
 .week-scroll {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-8);
@@ -1071,27 +1300,47 @@ a {
 /* ---------------------------------------------------------------------
  * Decisions queue and the decide sheet
  * ------------------------------------------------------------------- */
+.page-queue .group-head {
+  display: grid;
+  gap: var(--space-4px);
+}
+
 .queue-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "who"
+    "ruling"
+    "due"
+    "act";
   gap: var(--space-12px);
+  align-items: start;
   padding: var(--space-16px);
 }
 
-.queue-main {
+.queue-who {
+  grid-area: who;
   display: grid;
-  gap: var(--space-4px);
+  gap: var(--space-2px);
   min-width: 0;
 }
 
-.queue-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-8px);
+.queue-ruling {
+  grid-area: ruling;
+  min-width: 0;
+}
+
+.queue-due {
+  grid-area: due;
+  min-width: 0;
+}
+
+.queue-act {
+  grid-area: act;
 }
 
 .queue-next {
+  margin-top: var(--space-4px);
   font-size: var(--text-n1);
   line-height: var(--line-n1);
 }
@@ -1099,7 +1348,148 @@ a {
 @media (min-width: 640px) {
   .queue-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-areas:
+      "who act"
+      "ruling ruling"
+      "due due";
+  }
+}
+
+/* From 1024 one fixed grid down the queue: applicant | ruling | due | Decide. */
+@media (min-width: 1024px) {
+  .queue-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 0.9fr) auto;
+    grid-template-areas: "who ruling due act";
+    column-gap: var(--space-24px);
+  }
+}
+
+/* The agent's ruling, compact: seal and confidence, the reason, top hits. */
+.ruling-sum {
+  display: grid;
+  gap: var(--space-6px);
+  min-width: 0;
+}
+
+.ruling-sum-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6px) var(--space-12px);
+}
+
+.ruling-conf {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+.ruling-sum-reason {
+  color: var(--color-ink-muted);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+}
+
+.ruling-sum-reason[data-clamp] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.decide-sub {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-weight: var(--weight-semibold);
+  color: var(--color-ink-muted);
+}
+
+.sheet-block,
+.decide-compare {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
+/* Duplicate compare: field | this application | possible match. */
+.compare {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
+.compare-grid {
+  display: grid;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-8);
+  overflow: clip;
+}
+
+/* Below 640 the field name sits over its two values, so each value gets
+   half the row instead of a third. */
+.compare-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2px) var(--space-8px);
+  padding: var(--space-8px) var(--space-12px);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+}
+
+.compare-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.compare-row + .compare-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.compare-head {
+  background: var(--color-layer-1);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink-muted);
+}
+
+.compare-verdicts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4px) var(--space-16px);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4px);
+}
+
+.verdict[data-hit] {
+  color: var(--color-warning);
+  font-weight: var(--weight-medium);
+}
+
+.compare-label {
+  grid-column: 1 / -1;
+  color: var(--color-ink-muted);
+}
+
+.compare-head .compare-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .compare-row {
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .compare-label {
+    grid-column: auto;
+  }
+  .compare-head .compare-label {
+    display: block;
   }
 }
 
@@ -1275,58 +1665,54 @@ a {
   display: none;
 }
 
+.audit-group {
+  display: grid;
+  min-width: 0;
+}
+
+.audit-app {
+  padding: var(--space-12px) var(--space-16px) var(--space-4px);
+}
+
+.audit-app .rec-meta {
+  margin-inline-start: var(--space-6px);
+}
+
 .audit-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-areas:
-    "who who"
-    "stage stage"
-    "by stamp"
-    "conf conf"
-    "reason reason";
-  gap: var(--space-6px) var(--space-8px);
-  justify-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6px);
   align-items: start;
-  padding: var(--space-12px) var(--space-16px);
+  padding: var(--space-8px) var(--space-16px) var(--space-12px);
 }
 
 .audit-row > * {
   min-width: 0;
-  max-width: 100%;
 }
 
-.audit-who {
-  grid-area: who;
+.audit-stage {
   display: grid;
   gap: 0;
 }
 
-.audit-stage {
-  grid-area: stage;
+.audit-stage-title {
   font-weight: var(--weight-medium);
 }
 
-.audit-stage .audit-label {
-  display: none;
-}
-
-.audit-by {
-  grid-area: by;
-}
-
-.audit-stamp {
-  grid-area: stamp;
+.audit-seal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4px) var(--space-8px);
 }
 
 .audit-conf {
-  grid-area: conf;
   font-size: var(--text-n1);
   line-height: var(--line-n1);
-  color: var(--color-ink-muted);
+  color: var(--color-ink);
 }
 
 .audit-reason {
-  grid-area: reason;
   display: grid;
   gap: var(--space-6px);
   color: var(--color-ink-muted);
@@ -1335,8 +1721,7 @@ a {
 @media (min-width: 1024px) {
   .audit-head,
   .audit-row {
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) 72px 184px 88px minmax(0, 3fr);
-    grid-template-areas: "who stage by stamp conf reason";
+    grid-template-columns: minmax(0, 1.2fr) 304px minmax(0, 2.6fr);
     column-gap: var(--space-16px);
   }
   .audit-head {
@@ -1348,25 +1733,7 @@ a {
     font-weight: var(--weight-medium);
     color: var(--color-ink-muted);
   }
-  .audit-row {
-    padding: var(--density-row-pad-block) var(--space-16px);
-  }
-  .audit-stage {
+  .audit-stage-title {
     font-weight: var(--weight-regular);
-  }
-  .audit-label {
-    display: none;
-  }
-  .audit-conf {
-    font-size: var(--text-0);
-    line-height: var(--line-0);
-    color: var(--color-ink);
-  }
-  .num-col {
-    justify-self: end;
-    text-align: end;
-  }
-  .audit-conf {
-    padding-inline-end: var(--space-16px);
   }
 }

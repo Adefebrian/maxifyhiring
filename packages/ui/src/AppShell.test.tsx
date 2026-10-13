@@ -147,7 +147,8 @@ describe.skipIf(staticRenderer === null)("AppShell markup", () => {
     expect(html).toContain('aria-label="Feed, new"');
     // An icon destination carries its badge in the icon pill (below 640px)
     // and after the label (from 640px); CSS shows one.
-    expect(html.match(/<span class="shell-badge" aria-hidden="true">9\+<\/span>/g)?.length).toBe(2);
+    // Counts read exactly up to 99 (12 is "12", not "9+").
+    expect(html.match(/<span class="shell-badge" aria-hidden="true">12<\/span>/g)?.length).toBe(2);
     expect(html).toContain('<span class="shell-badge" data-kind="dot" aria-hidden="true"></span>');
   });
 

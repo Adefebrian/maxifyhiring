@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { due, fmtDayTime, owner, span, STATE_ORDER, STATE_LABEL, wibDate } from "./format";
+import { due, fmtDayTime, leanedTo, owner, queueGroup, sealLabel, sealOf, span, STATE_ORDER, STATE_LABEL, wibDate } from "./format";
 
 describe("format", () => {
   test("shows times in WIB", () => {
@@ -29,5 +29,44 @@ describe("format", () => {
   test("every state has a label and a place in the order", () => {
     expect(new Set(STATE_ORDER).size).toBe(15);
     for (const s of STATE_ORDER) expect(STATE_LABEL[s]).toBeTruthy();
+  });
+});
+
+describe("seals", () => {
+  const base = { verified: true, stamp: null, confidence: 1, ruleHits: [] as string[], jev: null as unknown };
+  test("a rule row is neutral and deterministic, never verified by JEV", () => {
+    expect(sealOf({ ...base, decidedBy: "rule" })).toBe("rule");
+    expect(sealLabel({ ...base, decidedBy: "rule" })).toBe("Rule, deterministic");
+  });
+  test("JEV verified and acted reads as verified", () => {
+    expect(sealOf({ ...base, decidedBy: "jev", confidence: 0.69 })).toBe("jev");
+  });
+  test("JEV under the floor abstains, names the confidence, and what it leaned to", () => {
+    const d = { ...base, decidedBy: "jev", confidence: 0.38, ruleHits: ["DUP_SAME_PHONE", "JEV_LOW_CONFIDENCE"], jev: { choice: "mark_duplicate" } };
+    expect(sealOf(d)).toBe("abstained");
+    expect(sealLabel(d)).toBe("JEV abstained, 38% < 60%, routed to human");
+    expect(leanedTo(d)).toBe("mark duplicate");
+  });
+  test("JEV choosing a person is routed (neutral), never green, whatever its confidence", () => {
+    const d = { ...base, decidedBy: "jev", decision: "human_review", confidence: 0.2, ruleHits: ["SOFT_CALL"], jev: { probabilities: { scheduling: 0.3, human_review: 0.47 } } };
+    expect(sealOf(d)).toBe("routed");
+    expect(sealLabel(d)).toBe("JEV routed to human");
+  });
+  test("a stamped fallback is unverified", () => {
+    expect(sealOf({ ...base, decidedBy: "rule", verified: false, stamp: "UNVERIFIED BY JEV" })).toBe("unverified");
+  });
+});
+
+describe("due urgency and queue groups", () => {
+  test("within 4 hours of the sim clock is soon", () => {
+    const now = "2026-10-13T01:00:00.000Z";
+    expect(due("2026-10-13T04:00:00.000Z", now)?.kind).toBe("soon");
+    expect(due("2026-10-13T08:00:00.000Z", now)?.kind).toBe("later");
+  });
+  test("cases group by why they wait", () => {
+    expect(queueGroup({ state: "human_review", match: { id: "APP-004" } })).toBe("duplicate");
+    expect(queueGroup({ state: "human_review", ruling: { stage: "schedule", decision: "no_slot" } })).toBe("no_slot");
+    expect(queueGroup({ state: "human_review", ruling: { stage: "route", decision: "human_review" } })).toBe("borderline");
+    expect(queueGroup({ state: "auto_rejected" })).toBe("rejection");
   });
 });

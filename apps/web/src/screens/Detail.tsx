@@ -1,28 +1,26 @@
 // Screen 2, Application detail (the case file). Concepts (ui.region_gate):
 //   head        divided-section  who this is and where the case stands
-//   decide      card             the human decision, only when the API offers actions
-//   issues      divided-section  validation errors and duplicate links, only when present
-//   decisions   rows             every routing ruling: stage, decided by, stamp, confidence, rule hits, reason
-//   interviews  divided-section  booked, done or no-show interviews
+//   decide      card             the human decision, only when the API offers actions,
+//                                with the agent's ruling (and the duplicate compare) above it
+//   issues      section          validation problems, or the duplicate link
+//   decisions   rows             every ruling with its seal: rule, verified by JEV, JEV abstained, unverified
+//   interviews  rows             booked, done or no-show interviews
 //   facts       card             what the applicant submitted
 //   log         rows             state changes as plain rows (no connector lines, no marker dots)
+// Every section has its heading outside its container, one pattern down the page.
 import { useState } from "react";
 import type { Api, Detail as DetailData } from "../api";
 import { DecideForm, type DecideResult } from "../DecideForm";
-import {
-  ACTION_LABEL,
-  confidence,
-  DECIDED_BY_LABEL,
-  decisionLabel,
-  fmtDayTime,
-  fmtTime,
-  owner,
-  roleOf,
-  STAGE_LABEL,
-  stateLabel,
-} from "../format";
+import { ACTION_LABEL, confidence, DECIDED_BY_LABEL, decisionLabel, fmtDayTime, fmtTime, owner, roleOf, sealOf, STAGE_LABEL, stateLabel, topHits } from "../format";
 import { Glyph } from "../icons";
-import { Badge, Due, Empty, Linkify, LoadError, Notice, SkeletonRows, StampBadge, StateBadge, useLoad } from "../parts";
+import { Badge, Compare, Due, Empty, KeepIds, Linkify, LoadError, Notice, RulingSummary, Seal, SkeletonRows, StateBadge, useLoad } from "../parts";
+
+/** A log note that only repeats what the title already says is dropped. */
+function usefulNote(note: string): string | null {
+  const n = note.trim();
+  if (!n || /^application received$/i.test(n)) return null;
+  return n;
+}
 
 export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now: string | null; onChanged: () => void }) {
   const load = useLoad<DetailData>(() => api.application(id), id);
@@ -58,12 +56,12 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
     );
   }
 
-  const { app, log, decisions, errors, interviews, duplicates, actions } = load.data;
-  const dupLinks = [
-    ...(app.duplicateOf ? [{ id: app.duplicateOf, label: `Duplicate of ${app.duplicateOf}`, state: null as string | null }] : []),
-    ...duplicates.filter((d) => d.id !== app.duplicateOf).map((d) => ({ id: d.id, label: `${d.name}, ${d.id}`, state: d.state as string | null })),
-  ];
-  const hasIssues = errors.length > 0 || dupLinks.length > 0;
+  const { app, log, decisions, errors, interviews, duplicates, actions, ruling, match } = load.data;
+  // A confirmed duplicate links once, neutrally. An open review (match present)
+  // shows the compare inside the decide card instead.
+  const linkedTo = app.state === "duplicate" ? app.duplicateOf ?? duplicates[0]?.id ?? null : null;
+  const otherDupes = duplicates.filter((d) => d.id !== linkedTo && d.id !== match?.id);
+  const hasIssues = errors.length > 0 || linkedTo !== null || otherDupes.length > 0;
 
   function decided(r: DecideResult) {
     setDone(r);
@@ -90,7 +88,9 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
           </div>
           <div>
             <dt>Next action</dt>
-            <dd>{app.nextAction || "None"}</dd>
+            <dd>
+              <KeepIds text={app.nextAction || "None"} />
+            </dd>
           </div>
           <div>
             <dt>Due</dt>
@@ -108,40 +108,60 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
       ) : null}
 
       {actions.length > 0 ? (
-        <section className="card decide-card" aria-labelledby="decide-title">
-          <div className="card-head">
+        <section className="band" aria-labelledby="decide-title">
+          <div className="band-head">
             <h2 id="decide-title">Decision needed</h2>
-            <p className="card-line">The agent will not decide this one alone. Pick a route and say why; the reason is kept on the audit log.</p>
+            <p className="band-line">The agent did not decide this one alone. Read its ruling, pick a route, and say why; the reason is kept on the audit log.</p>
           </div>
-          <DecideForm key={app.state} api={api} appId={app.id} appOwner={app.owner} actions={actions} onDone={decided} />
+          <div className="card decide-card">
+            {ruling ? <RulingSummary r={ruling} /> : null}
+            {match ? (
+              <div className="decide-compare">
+                <p className="decide-sub">Possible duplicate</p>
+                <Compare self={app} match={match} />
+              </div>
+            ) : null}
+            <DecideForm key={app.state} api={api} appId={app.id} appOwner={app.owner} actions={actions} onDone={decided} />
+          </div>
         </section>
       ) : null}
 
       {hasIssues ? (
-        <section className="band band-divided" aria-labelledby="issues-title">
-          <h2 id="issues-title">What blocks it</h2>
+        <section className="band" aria-labelledby="issues-title">
+          <h2 id="issues-title">{linkedTo && errors.length === 0 ? "Linked application" : "What blocks it"}</h2>
           {errors.length > 0 ? (
-            <Notice tone="danger" title={errors.length === 1 ? "1 validation error" : `${errors.length} validation errors`}>
-              <ul className="plain-list">
+            <Notice tone="danger" title={errors.length === 1 ? "1 thing to fix" : `${errors.length} things to fix`}>
+              <ul className="plain-list issue-list">
                 {errors.map((e) => (
                   <li key={`${e.code}-${e.field}`}>
-                    <span className="code">{e.code}</span> on {e.field}: {e.message}
+                    <span>{e.message}</span> <span className="token">{e.code}</span>
                   </li>
                 ))}
               </ul>
             </Notice>
           ) : null}
-          {dupLinks.length > 0 ? (
-            <Notice tone="warning" title="Possible duplicate">
-              <ul className="plain-list">
-                {dupLinks.map((d) => (
-                  <li key={d.id}>
-                    <a href={`#/app/${d.id}`}>{d.label}</a>
-                    {d.state ? `, ${stateLabel(d.state).toLowerCase()}` : ""}
-                  </li>
+          {linkedTo ? (
+            <div className="link-row">
+              <Glyph name="link" />
+              <p>
+                Linked as duplicate of <a href={`#/app/${linkedTo}`}>{linkedTo}</a>. The earlier application stays primary.
+              </p>
+            </div>
+          ) : null}
+          {otherDupes.length > 0 ? (
+            <div className="link-row">
+              <Glyph name="link" />
+              <p>
+                Later applications linked here:{" "}
+                {otherDupes.map((d, i) => (
+                  <span key={d.id}>
+                    {i > 0 ? ", " : ""}
+                    <a href={`#/app/${d.id}`}>{d.id}</a>
+                  </span>
                 ))}
-              </ul>
-            </Notice>
+                .
+              </p>
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -152,36 +172,37 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
           <Empty title="No decisions yet">The agent has not ruled on this application.</Empty>
         ) : (
           <ol className="list">
-            {decisions.map((d) => (
-              <li className="ruling" key={d.id}>
-                <div className="ruling-head">
-                  <p className="ruling-title">
-                    {STAGE_LABEL[d.stage] ?? d.stage}: {decisionLabel(d.decision)}
-                  </p>
-                  <div className="ruling-badges">
-                    <Badge>Decided by {DECIDED_BY_LABEL[d.decidedBy] ?? d.decidedBy}</Badge>
-                    <StampBadge verified={d.verified} stamp={d.stamp} />
+            {decisions.map((d) => {
+              const hits = topHits(d.ruleHits, 8);
+              return (
+                <li className="ruling" key={d.id}>
+                  <div className="ruling-head">
+                    <p className="ruling-title">
+                      {STAGE_LABEL[d.stage] ?? d.stage}: {decisionLabel(d.decision)}
+                    </p>
+                    <Seal d={d} />
                   </div>
-                </div>
-                <p className="ruling-reason">
-                  <Linkify text={d.reason} />
-                </p>
-                <div className="ruling-meta">
-                  <span className="num">Confidence {confidence(d.confidence)}</span>
-                  <span className="num">{fmtDayTime(d.at)} WIB</span>
-                  {d.ruleHits.map((h) => (
-                    <span className="token" key={h}>
-                      {h}
-                    </span>
-                  ))}
-                </div>
-              </li>
-            ))}
+                  <p className="ruling-reason">
+                    <Linkify text={d.reason} />
+                  </p>
+                  <div className="ruling-meta">
+                    <span>Decided by {DECIDED_BY_LABEL[d.decidedBy] ?? d.decidedBy}</span>
+                    {sealOf(d) !== "abstained" ? <span className="num">Confidence {confidence(d.confidence)}</span> : null}
+                    <span className="num">{fmtDayTime(d.at)} WIB</span>
+                    {hits.map((h) => (
+                      <span className="token" key={h}>
+                        {h}
+                      </span>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         )}
       </section>
 
-      <section className="band band-divided" aria-labelledby="iv-title">
+      <section className="band" aria-labelledby="iv-title">
         <h2 id="iv-title">Interviews</h2>
         {interviews.length === 0 ? (
           <p className="band-empty">No interview booked for this application.</p>
@@ -204,59 +225,69 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
         )}
       </section>
 
-      <section className="card facts-card" aria-labelledby="facts-title">
+      <section className="band" aria-labelledby="facts-title">
         <h2 id="facts-title">Submitted facts</h2>
-        <dl className="facts">
-          <Fact label="Email" value={app.email} />
-          <Fact label="Phone" value={app.phone ?? "Not given"} />
-          <Fact label="Location" value={app.location ?? "Not given"} />
-          <Fact label="Experience" value={app.yearsExp === null ? "Not given" : `${app.yearsExp} years`} />
-          <Fact label="Submitted" value={`${fmtDayTime(app.submittedAt)} WIB`} />
-          <Fact label="Consent" value={app.consent ? "Given" : "Not given"} />
-          <Fact label="Match score" value={app.score === null ? "Not scored" : String(app.score)} />
-          <Fact label="Updated" value={`${fmtDayTime(app.updatedAt)} WIB`} />
-          <div className="fact fact-wide">
-            <dt>Skills</dt>
-            <dd className="tokens">
-              {app.skills.length ? app.skills.map((s) => <span className="token" key={s}>{s}</span>) : "None listed"}
-            </dd>
-          </div>
-          <div className="fact fact-wide">
-            <dt>Availability</dt>
-            <dd>
-              {app.availability.length
-                ? app.availability.map((a, i) => (
-                    <span className="num" key={i}>
-                      {i > 0 ? "; " : ""}
-                      {fmtDayTime(a.start)} to {fmtTime(a.end)} WIB
-                    </span>
-                  ))
-                : "Any interviewer slot"}
-            </dd>
-          </div>
-          <div className="fact fact-wide">
-            <dt>CV text</dt>
-            <dd className="prose">{app.cvText || "No CV text."}</dd>
-          </div>
-        </dl>
+        <div className="card">
+          <dl className="facts">
+            <Fact label="Email" value={app.email} />
+            <Fact label="Phone" value={app.phone ?? "Not given"} />
+            <Fact label="Location" value={app.location ?? "Not given"} />
+            <Fact label="Experience" value={app.yearsExp === null ? "Not given" : `${app.yearsExp} years`} />
+            <Fact label="Submitted" value={`${fmtDayTime(app.submittedAt)} WIB`} />
+            <Fact label="Consent" value={app.consent ? "Given" : "Not given"} />
+            <Fact label="Match score" value={app.score === null ? "Not scored" : String(app.score)} />
+            <Fact label="Updated" value={`${fmtDayTime(app.updatedAt)} WIB`} />
+            <div className="fact fact-wide">
+              <dt>Skills</dt>
+              <dd className="tokens">
+                {app.skills.length
+                  ? app.skills.map((s) => (
+                      <span className="token" key={s}>
+                        {s}
+                      </span>
+                    ))
+                  : "None listed"}
+              </dd>
+            </div>
+            <div className="fact fact-wide">
+              <dt>Availability</dt>
+              <dd>
+                {app.availability.length
+                  ? app.availability.map((a, i) => (
+                      <span className="num" key={i}>
+                        {i > 0 ? "; " : ""}
+                        {fmtDayTime(a.start)} to {fmtTime(a.end)} WIB
+                      </span>
+                    ))
+                  : "Any interviewer slot"}
+              </dd>
+            </div>
+            <div className="fact fact-wide">
+              <dt>CV text</dt>
+              <dd className="prose">{app.cvText || "No CV text."}</dd>
+            </div>
+          </dl>
+        </div>
       </section>
 
       <section className="band" aria-labelledby="log-title">
         <h2 id="log-title">Pipeline log</h2>
         <ol className="list">
-          {log.map((l) => (
-            <li className="row log-row" key={l.id}>
-              <div className="row-main">
-                <p className="row-title">
-                  {l.fromState ? `${stateLabel(l.fromState)} to ${stateLabel(l.toState)}` : `Entered as ${stateLabel(l.toState).toLowerCase()}`}
-                </p>
-                <p className="row-meta">
-                  <span className="num">{fmtDayTime(l.at)} WIB</span>, by {owner(l.actor)}, now owned by {owner(l.owner)}
-                  {l.note ? `. ${l.note}` : ""}
-                </p>
-              </div>
-            </li>
-          ))}
+          {log.map((l) => {
+            const note = usefulNote(l.note);
+            return (
+              <li className="row log-row" key={l.id}>
+                <span className="log-time">{fmtDayTime(l.at)}</span>
+                <div className="row-main">
+                  <p className="log-title">{l.fromState ? `${stateLabel(l.fromState)} to ${stateLabel(l.toState)}` : `Entered as ${stateLabel(l.toState).toLowerCase()}`}</p>
+                  <p className="row-meta">
+                    By {owner(l.actor)}, now owned by {owner(l.owner)}
+                    {note ? `. ${note}` : ""}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       </section>
     </div>

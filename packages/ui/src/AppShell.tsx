@@ -177,7 +177,7 @@ function Badge({ value }: { value: AppShellDestination["badge"] }) {
   if (typeof value === "number" && value > 0) {
     return (
       <span className="shell-badge" aria-hidden="true">
-        {value > 9 ? "9+" : value}
+        {value > 99 ? "99+" : value}
       </span>
     );
   }
