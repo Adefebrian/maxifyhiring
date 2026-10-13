@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.turbo/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# JEV decision logs: per-run, local audit trail. .jal/memory/ stays committed.
+**/.jal/decisions/
+
+# /jal-debug evidence: LLM trace lines (redacted, but they hold user prompts) and debug captures.
+**/.jal/traces/
+**/.jal/debug/

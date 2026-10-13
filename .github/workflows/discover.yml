@@ -1,0 +1,127 @@
+name: Discover
+
+# Nightly /jal-debug discover run against staging on the self-hosted runner.
+# It finds bugs nobody reported, uploads the merged report as an artifact, and
+# opens (or updates) one GitHub issue per new finding cluster.
+#
+# It is its own workflow, never a step of CI or deploy, and every step is
+# allowed to fail: a discovery run can never block or fail the deploy pipeline.
+#
+# Setup (repository settings):
+#   vars.STAGING_URL        staging web URL, e.g. https://staging.app.jalgroup.id
+#   vars.STAGING_API_URL    staging API origin (optional; enables contract and fuzz)
+#   vars.DISCOVER_SCOPE     scopes JEV picked (default crawl,faults,contract,static)
+#   vars.JAL_AIDEV_DIR      path to the JAL-AIDEV plugin on the runner (optional)
+#   secrets.JAL_AIDEV_TOKEN read token for JAL-Group/JAL-AIDEV when JAL_AIDEV_DIR is unset
+#   .jal/debug.json         must list the staging hosts under "targets"
+# Production is never a target here; writes stay on staging.
+
+on:
+  schedule:
+    - cron: "0 19 * * *" # 02:00 WIB
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Scopes (comma separated)"
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: discover
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: [self-hosted]
+    continue-on-error: true
+    timeout-minutes: 60
+    env:
+      RUN_ID: discover-${{ github.run_id }}
+      SCOPE: ${{ github.event.inputs.scope || vars.DISCOVER_SCOPE || 'crawl,faults,contract,static' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Checkout JAL-AIDEV scripts
+        if: ${{ vars.JAL_AIDEV_DIR == '' }}
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: JAL-Group/JAL-AIDEV
+          ref: main
+          path: .jal-aidev
+          token: ${{ secrets.JAL_AIDEV_TOKEN || github.token }}
+
+      - name: Install dependencies
+        continue-on-error: true
+        run: bun install --frozen-lockfile
+
+      - name: Run discovery
+        id: discover
+        continue-on-error: true
+        env:
+          JAL_AIDEV_DIR: ${{ vars.JAL_AIDEV_DIR }}
+          STAGING_URL: ${{ vars.STAGING_URL }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          root="${JAL_AIDEV_DIR:-$GITHUB_WORKSPACE/.jal-aidev}"
+          if [ ! -f "$root/scripts/debug/discover.ts" ]; then
+            echo "::warning::JAL-AIDEV scripts not found at $root; set vars.JAL_AIDEV_DIR or secrets.JAL_AIDEV_TOKEN"
+            exit 0
+          fi
+          if [ -z "$STAGING_URL" ]; then
+            echo "::warning::vars.STAGING_URL is not set; nothing to discover"
+            exit 0
+          fi
+          args=(--scope "$SCOPE" --url "$STAGING_URL" --run "$RUN_ID" --cwd "$GITHUB_WORKSPACE")
+          if [ -n "$STAGING_API_URL" ]; then args+=(--api "$STAGING_API_URL"); fi
+          if [ -f .jal/debug/plan.json ]; then args+=(--plan .jal/debug/plan.json); fi
+          set +e
+          bun "$root/scripts/debug/discover.ts" "${args[@]}" > /dev/null
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          report=".jal/debug/$RUN_ID/discover.json"
+          if [ -f "$report" ]; then
+            echo "report=$report" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Discover ($SCOPE)"
+              bun -e "const r = await Bun.file('$report').json(); const s = r.stats.bySeverity; console.log('Findings: ' + r.findings.length + ' (critical ' + s.critical + ', high ' + s.high + ', medium ' + s.medium + ', low ' + s.low + ')'); for (const f of r.findings.slice(0, 15)) console.log('- **' + f.severity + '** ' + f.tool + ': ' + f.title.replace(/[|]/g, '/') + ' (' + f.where + ')');"
+            } >> "$GITHUB_STEP_SUMMARY" || true
+          fi
+          # Findings (exit 1) are the expected outcome of discovery, not a failure.
+          exit 0
+
+      - name: Upload report
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: discover-${{ github.run_id }}
+          path: .jal/debug/${{ env.RUN_ID }}/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Open or update issues
+        if: ${{ always() && steps.discover.outputs.report != '' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JAL_AIDEV_DIR: ${{ vars.JAL_AIDEV_DIR }}
+        run: |
+          root="${JAL_AIDEV_DIR:-$GITHUB_WORKSPACE/.jal-aidev}"
+          bun "$root/scripts/debug/discover.ts" issues \
+            --report "${{ steps.discover.outputs.report }}" \
+            --min-severity "${{ vars.DISCOVER_MIN_SEVERITY || 'medium' }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --cwd "$GITHUB_WORKSPACE" || true

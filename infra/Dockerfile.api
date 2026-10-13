@@ -1,0 +1,42 @@
+# Multi-stage build for apps/api. oven/bun base throughout, slim final image.
+
+# Every workspace manifest, and nothing else. bun install --frozen-lockfile
+# validates the whole workspace, not just the packages this image needs: every
+# apps/* and packages/* package.json must be present (packages/video,
+# packages/scene, packages/motion, any module added later) or the install
+# fails with "lockfile had changes" even though the lockfile is fine. This
+# stage copies the two trees and keeps only apps/<name>/package.json and
+# packages/<name>/package.json, so adding a workspace never needs a Dockerfile
+# edit. It works on any Docker builder (no COPY --parents, no labs syntax).
+# A source edit reruns this stage, but its output is the same files, so the
+# deps stage below keeps its cache and bun install does not rerun.
+FROM oven/bun:1-slim AS manifests
+WORKDIR /src
+COPY apps ./apps
+COPY packages ./packages
+RUN for f in apps/*/package.json packages/*/package.json; do \
+      if [ -f "$f" ]; then mkdir -p "/manifests/${f%/package.json}" && cp "$f" "/manifests/$f"; fi; \
+    done
+
+FROM oven/bun:1-slim AS deps
+WORKDIR /repo
+COPY package.json bun.lock ./
+COPY --from=manifests /manifests/ ./
+RUN bun install --frozen-lockfile
+
+FROM oven/bun:1-slim AS runner
+WORKDIR /repo
+ENV NODE_ENV=production
+COPY --from=deps /repo/node_modules ./node_modules
+COPY package.json turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+EXPOSE 3001
+USER bun
+# oven/bun:1-slim has no curl or wget, so the check uses Bun's own fetch.
+# /health is liveness only (touches nothing); never point this at /ready, or a
+# Postgres blip restarts a healthy API.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["bun", "apps/api/src/index.ts"]
