@@ -34,6 +34,13 @@ describe("route", () => {
     expect(decision.reason).toContain("below the 60% floor");
   });
 
+  test("under the floor JEV abstains even when its pick is human review", async () => {
+    const { decision } = await route(borderline, BE, fakeJev("human_review", 0.16));
+    expect(decision).toMatchObject({ decidedBy: "jev", decision: "human_review", confidence: 0.16 });
+    expect(decision.ruleHits).toContain("JEV_LOW_CONFIDENCE");
+    expect(decision.reason).not.toMatch(/human_review|screening_queue|auto_rejected/);
+  });
+
   test("a confident JEV route is acted on", async () => {
     const { decision } = await route(borderline, BE, fakeJev("screening_queue", 0.8));
     expect(decision).toMatchObject({ decidedBy: "jev", decision: "screening_queue" });

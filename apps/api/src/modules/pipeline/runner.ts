@@ -7,7 +7,7 @@ import { normalize, storableRaw, type Candidate } from "../intake";
 import type { JevOptions } from "../jev";
 import { route } from "../routing";
 import { findSlot, type Busy, type Interviewer } from "../scheduling";
-import type { Decision, Role } from "../shared";
+import { plural, type Decision, type Role } from "../shared";
 import { findDuplicate, fixSummary, judgeFuzzy, validate, type Existing } from "../validation";
 import { AUTOMATED, type State } from "./states";
 import { createApplication, getApp, listRoles, now, transition, type AppRow, type Faults } from "./store";
@@ -94,7 +94,7 @@ async function stepValidating(deps: PipelineDeps, a: AppRow, roles: Map<string, 
       nextAction: `Ask candidate to ${fixSummary(errors).charAt(0).toLowerCase()}${fixSummary(errors).slice(1)}`,
       due: hours(db, 48),
       actor: "agent:validator",
-      note: `${errors.length} validation error(s)`,
+      note: `${plural(errors.length, "validation error")}`,
       validationErrors: errors,
       decision: {
         stage: "validation",
@@ -103,7 +103,7 @@ async function stepValidating(deps: PipelineDeps, a: AppRow, roles: Map<string, 
         stamp: null,
         decision: "invalid",
         confidence: 1,
-        reason: `Failed ${errors.length} rule(s): ${errors.map((e) => e.message).join(" ")}`,
+        reason: `Failed ${plural(errors.length, "rule")}: ${errors.map((e) => e.message).join(" ")}`,
         ruleHits: errors.map((e) => e.code),
         jev: null,
       },
@@ -331,7 +331,7 @@ export function stepSchedule(deps: PipelineDeps, a: AppRow, extraBooked: { inter
       stamp: null,
       decision: "no_slot",
       confidence: 1,
-      reason: "no_slot: no free interviewer slot overlaps the candidate's availability within 10 working days.",
+      reason: "No interview slot: no free interviewer slot overlaps the candidate's availability within 10 working days.",
       ruleHits: ["NO_SLOT"],
       jev: null,
     },

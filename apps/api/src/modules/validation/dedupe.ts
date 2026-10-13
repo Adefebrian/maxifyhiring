@@ -2,7 +2,7 @@
 // rule call. Fuzzy matches (same phone, or a near-identical name) are a soft
 // call, so JEV judges them; without a verified JEV answer they go to a human.
 import { askChoice, MIN_ACT_CONFIDENCE, UNVERIFIED, type JevOptions } from "../jev";
-import type { Decision } from "../shared";
+import { label, type Decision } from "../shared";
 
 export type Existing = {
   id: string;
@@ -97,7 +97,7 @@ export async function judgeFuzzy(
     jev,
   );
   const hits = m.ruleHits.filter((h) => !h.startsWith("MATCHES:")).join(", ");
-  if (v.verified && v.choice !== "human_review" && v.confidence < MIN_ACT_CONFIDENCE) {
+  if (v.verified && v.confidence < MIN_ACT_CONFIDENCE) {
     return {
       stage: "dedupe",
       decidedBy: "jev",
@@ -105,7 +105,7 @@ export async function judgeFuzzy(
       stamp: null,
       decision: "human_review",
       confidence: v.confidence,
-      reason: `JEV leaned ${v.choice} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so a recruiter confirms the possible duplicate of ${m.of} (${hits}, name similarity ${m.similarity}).`,
+      reason: `JEV leaned to ${label(v.choice)} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so a recruiter confirms the possible duplicate of ${m.of} (${hits}, name similarity ${Math.round(m.similarity * 100)}%).`,
       ruleHits: [...m.ruleHits, "JEV_LOW_CONFIDENCE"],
       jev: { model: v.model, choice: v.choice, probabilities: v.probabilities },
     };
@@ -118,7 +118,7 @@ export async function judgeFuzzy(
       stamp: null,
       decision: v.choice,
       confidence: v.confidence,
-      reason: `JEV chose ${v.choice} (${Math.round(v.confidence * 100)}%) for a possible duplicate of ${m.of}: ${hits}, name similarity ${m.similarity}, ${m.daysApart} days apart.`,
+      reason: `JEV chose ${label(v.choice)} at ${Math.round(v.confidence * 100)}% for a possible duplicate of ${m.of}: ${hits}, name similarity ${Math.round(m.similarity * 100)}%, ${m.daysApart} days apart.`,
       ruleHits: m.ruleHits,
       jev: { model: v.model, probabilities: v.probabilities },
     };

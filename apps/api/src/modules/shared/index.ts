@@ -26,3 +26,18 @@ export type Decision<D extends string = string> = {
   ruleHits: string[];
   jev: unknown;
 };
+
+/** Plain words for decision codes, used inside audit reasons (codes stay in `decision` and rule hits). */
+export const DECISION_LABEL: Record<string, string> = {
+  scheduling: "Scheduling",
+  screening_queue: "Screening queue",
+  human_review: "Human review",
+  auto_rejected: "Auto-reject",
+  mark_duplicate: "Mark duplicate",
+  keep_both: "Keep both",
+  no_slot: "No interview slot",
+};
+
+export const label = (code: string): string => DECISION_LABEL[code] ?? code.replace(/_/g, " ");
+
+export const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n === 1 ? one : many}`;

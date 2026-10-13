@@ -378,7 +378,7 @@ describe("F5 scheduling conflict", () => {
     expect(`${s1.interviewer_id}|${s1.start}`).not.toBe(`${s2.interviewer_id}|${s2.start}`);
   });
 
-  test("every calendar full: human_review with a no_slot reason", async () => {
+  test("every calendar full: human_review with a no-slot reason", async () => {
     const d = deps();
     await seedReference(d.db);
     for (const iv of ["IV-1", "IV-2", "IV-3", "IV-4", "IV-5", "IV-6"]) {
@@ -388,7 +388,7 @@ describe("F5 scheduling conflict", () => {
     expect(a.state).toBe("human_review");
     const last = d.db.query<{ decision: string; reason: string }, { id: string }>("SELECT decision, reason FROM routing_decisions WHERE app_id = $id ORDER BY id DESC LIMIT 1").get({ id: a.id })!;
     expect(last.decision).toBe("no_slot");
-    expect(last.reason).toContain("no_slot");
+    expect(last.reason).toContain("No interview slot");
     expect(count(d.db, "SELECT COUNT(*) AS n FROM interviews")).toBe(0);
   });
 

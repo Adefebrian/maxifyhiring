@@ -4,7 +4,7 @@
 // auto-rejected: JEV is not even offered that option, and the fallback
 // without a verified JEV answer is a human.
 import { askChoice, MIN_ACT_CONFIDENCE, UNVERIFIED, type JevOptions } from "../jev";
-import type { Decision, Role } from "../shared";
+import { label, type Decision, type Role } from "../shared";
 
 export type Route = "scheduling" | "screening_queue" | "human_review" | "auto_rejected";
 
@@ -74,7 +74,7 @@ export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise
         stamp: null,
         decision: ruleBand,
         confidence: 1,
-        reason: `Score ${s.total} (${breakdown}) is clearly in the ${ruleBand} band.${s.mustMissing.length ? ` Missing: ${s.mustMissing.join(", ")}.` : ""}`,
+        reason: `Score ${s.total} (${breakdown}) is clearly in the ${label(ruleBand)} band.${s.mustMissing.length ? ` Missing: ${s.mustMissing.join(", ")}.` : ""}`,
         ruleHits: s.hits,
         jev: null,
       },
@@ -107,7 +107,7 @@ export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise
     jev,
   );
 
-  if (v.verified && v.choice !== "human_review" && v.confidence < MIN_ACT_CONFIDENCE) {
+  if (v.verified && v.confidence < MIN_ACT_CONFIDENCE) {
     return {
       score: s,
       decision: {
@@ -117,7 +117,7 @@ export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise
         stamp: null,
         decision: "human_review",
         confidence: v.confidence,
-        reason: `Soft call (${soft}). JEV leaned ${v.choice} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so the hiring manager decides. Score ${s.total} (${breakdown}).`,
+        reason: `Soft call (${soft}). JEV leaned to ${label(v.choice)} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so the hiring manager decides. Score ${s.total} (${breakdown}).`,
         ruleHits: [...s.hits, "SOFT_CALL", "JEV_LOW_CONFIDENCE"],
         jev: { model: v.model, choice: v.choice, probabilities: v.probabilities },
       },
@@ -133,7 +133,7 @@ export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise
         stamp: null,
         decision: v.choice,
         confidence: v.confidence,
-        reason: `Soft call (${soft}). JEV chose ${v.choice} at ${Math.round(v.confidence * 100)}% over rule band ${ruleBand}. Score ${s.total} (${breakdown}).`,
+        reason: `Soft call (${soft}). JEV chose ${label(v.choice)} at ${Math.round(v.confidence * 100)}% over the ${label(ruleBand)} band. Score ${s.total} (${breakdown}).`,
         ruleHits: [...s.hits, "SOFT_CALL"],
         jev: { model: v.model, probabilities: v.probabilities },
       },
