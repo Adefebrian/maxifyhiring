@@ -3,7 +3,7 @@
 // or nothing at all. It is state-driven and idempotent: re-running it after a
 // crash picks up from whatever state was last committed (F6).
 import type { Database } from "bun:sqlite";
-import { normalize, type Candidate } from "../intake";
+import { normalize, storableRaw, type Candidate } from "../intake";
 import type { JevOptions } from "../jev";
 import { route } from "../routing";
 import { findSlot, type Busy, type Interviewer } from "../scheduling";
@@ -14,7 +14,14 @@ import { createApplication, getApp, listRoles, now, transition, type AppRow, typ
 
 export const RECRUITER = "recruiter:Rina";
 export type Summarize = (cvText: string) => Promise<string>;
-export type PipelineDeps = { db: Database; jev: JevOptions; summarize?: Summarize; faults?: Faults };
+export type PipelineDeps = {
+  db: Database;
+  jev: JevOptions;
+  summarize?: Summarize;
+  /** Upper bound on one CV summary; a hung LLM never holds routing longer than this. */
+  summaryTimeoutMs?: number;
+  faults?: Faults;
+};
 
 const MAX_SLOT_RETRIES = 5;
 const SUMMARY_TIMEOUT_MS = 8000;
@@ -43,7 +50,7 @@ export async function intake(deps: PipelineDeps, raw: unknown): Promise<AppRow> 
     {
       id,
       source_ref: c.ref,
-      raw_json: JSON.stringify(raw ?? null).slice(0, 20_000),
+      raw_json: storableRaw(raw),
       name: c.name,
       email: c.email,
       phone: c.phone,
@@ -108,6 +115,10 @@ async function stepValidating(deps: PipelineDeps, a: AppRow, roles: Map<string, 
   const match = findDuplicate(self, primaries(db, a.role_code));
 
   if (match.kind === "exact") {
+    // After crash recovery an earlier submission can resume after its later
+    // twin already became primary. The audit reason must say which happened.
+    const primary = getApp(db, match.of);
+    const earlier = !a.submitted_at || !primary?.submitted_at || Date.parse(primary.submitted_at) <= Date.parse(a.submitted_at);
     markDuplicate(deps, a.id, match.of, {
       stage: "dedupe",
       decidedBy: "rule",
@@ -115,8 +126,10 @@ async function stepValidating(deps: PipelineDeps, a: AppRow, roles: Map<string, 
       stamp: null,
       decision: "mark_duplicate",
       confidence: 1,
-      reason: `Same email and role as ${match.of}, which was submitted first. Linked; the earlier application stays primary.`,
-      ruleHits: match.ruleHits,
+      reason: earlier
+        ? `Same email and role as ${match.of}, which was submitted first. Linked; the earlier application stays primary.`
+        : `Same email and role as ${match.of}, which was processed first although this application was submitted earlier (its processing was delayed). Linked; ${match.of} stays primary.`,
+      ruleHits: earlier ? match.ruleHits : [...match.ruleHits, "DUP_PROCESSED_OUT_OF_ORDER"],
       jev: null,
     });
     return;
@@ -200,15 +213,20 @@ function markValid(deps: PipelineDeps, id: string, d: Decision): void {
 
 async function summarise(deps: PipelineDeps, a: AppRow): Promise<{ summary: string | null; summary_status: string }> {
   if (!deps.summarize || !a.cv_text) return { summary: null, summary_status: "off" };
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const out = await Promise.race([
       deps.summarize(a.cv_text),
-      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), SUMMARY_TIMEOUT_MS)),
+      new Promise<never>((_, rej) => {
+        timer = setTimeout(() => rej(new Error("timeout")), deps.summaryTimeoutMs ?? SUMMARY_TIMEOUT_MS);
+      }),
     ]);
     const clean = typeof out === "string" ? out.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 600) : "";
     return clean ? { summary: clean, summary_status: "ok" } : { summary: null, summary_status: "failed" };
   } catch {
     return { summary: null, summary_status: "failed" };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -361,6 +379,16 @@ export async function runAll(deps: PipelineDeps): Promise<number> {
   const ids = deps.db
     .query<{ id: string }, []>(`SELECT id FROM applications WHERE state IN (${AUTOMATED.map((s) => `'${s}'`).join(",")}) ORDER BY submitted_at, id`)
     .all();
-  for (const { id } of ids) await process(deps, id);
+  // One broken application must not strand the rest: process every one, then
+  // fail loudly with the ids that still could not advance.
+  const failed: string[] = [];
+  for (const { id } of ids) {
+    try {
+      await process(deps, id);
+    } catch (e) {
+      failed.push(`${id}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (failed.length) throw new Error(`runAll could not advance ${failed.length} application(s): ${failed.join("; ")}`);
   return ids.length;
 }

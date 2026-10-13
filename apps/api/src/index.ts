@@ -10,7 +10,12 @@ if (import.meta.main) {
   Bun.serve({ fetch: app.fetch, port });
   // eslint-disable-next-line no-console
   console.log(`api listening on :${port}`);
-  if (process.env.SEED_ON_BOOT !== "0") {
+  if (process.env.SEED_ON_BOOT === "0") {
+    // Resume anything a previous crash left in an automated state.
+    const res = await app.request("/api/pipeline/run", { method: "POST" });
+    // eslint-disable-next-line no-console
+    console.log(`resume on boot: HTTP ${res.status}`, await res.text());
+  } else {
     const res = await app.request("/api/pipeline/reset", { method: "POST" });
     const body = (await res.json()) as { processed: number; invariants: { ok: boolean } };
     // eslint-disable-next-line no-console

@@ -66,6 +66,24 @@ export async function decide(deps: PipelineDeps, id: string, input: HumanInput):
     dupOf = tag ? tag.slice("MATCHES:".length) : null;
   }
 
+  // keep_both makes this application primary. Another application with the
+  // same email and role may already be primary (its twin was kept first);
+  // the unique index would refuse, so say so instead of failing with a 500.
+  if (input.action === "keep_both") {
+    const holder = deps.db
+      .query<{ id: string }, { id: string; email: string | null; role: string | null }>(
+        "SELECT id FROM applications WHERE is_primary = 1 AND email = $email AND role_code = $role AND id <> $id",
+      )
+      .get({ id, email: app.email, role: app.role_code });
+    if (holder) {
+      return {
+        ok: false,
+        status: 409,
+        error: `${holder.id} is already the primary application for this email and role. Mark this one as a duplicate or reject it.`,
+      };
+    }
+  }
+
   transition(deps.db, id, {
     to: target,
     ...assign[target],

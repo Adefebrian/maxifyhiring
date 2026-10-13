@@ -22,3 +22,17 @@ describe("GET /health", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("default app wiring", () => {
+  test("mounts the pipeline under /api with an empty in-memory db", async () => {
+    const res = await app.request("/api/stats");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { total: number };
+    expect(typeof body.total).toBe("number");
+  });
+
+  test("unknown application is a JSON 404, not a 500", async () => {
+    const res = await app.request("/api/applications/APP-404");
+    expect(res.status).toBe(404);
+  });
+});

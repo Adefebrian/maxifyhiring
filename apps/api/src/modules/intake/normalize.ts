@@ -98,3 +98,32 @@ export function normalize(raw: unknown): Candidate {
     availability: availability(r.availability),
   };
 }
+
+// The fields normalize() reads. A payload too large to keep whole is cut down
+// to exactly these, so re-normalising the stored copy gives the same candidate.
+const KNOWN_KEYS = ["ref", "full_name", "name", "email", "phone", "role", "years_experience", "location", "skills", "cv_text", "consent", "submitted_at", "availability", "sim_no_show"] as const;
+const MAX_RAW_CHARS = 20_000;
+
+function bound(v: unknown, depth: number, maxString: number): unknown {
+  if (typeof v === "string") return v.slice(0, maxString);
+  if (v === null || typeof v !== "object") return typeof v === "number" || typeof v === "boolean" ? v : v === undefined ? undefined : null;
+  if (depth <= 0) return null;
+  if (Array.isArray(v)) return v.slice(0, 50).map((x) => bound(x, depth - 1, Math.min(maxString, 200)));
+  const out: Record<string, unknown> = Object.create(null);
+  for (const k of Object.keys(v).slice(0, 40)) out[k] = bound((v as Record<string, unknown>)[k], depth - 1, maxString);
+  return out;
+}
+
+/**
+ * The raw payload as stored: always valid JSON, always bounded. Cutting the
+ * serialised string instead (the old `.slice(0, 20000)`) left unparseable
+ * JSON, so the application could never be validated again (F3).
+ */
+export function storableRaw(raw: unknown): string {
+  const whole = JSON.stringify(bound(raw ?? null, 4, MAX_TEXT * 2) ?? null);
+  if (whole.length <= MAX_RAW_CHARS || !raw || typeof raw !== "object" || Array.isArray(raw)) return whole;
+  const r = raw as Record<string, unknown>;
+  const known: Record<string, unknown> = { _truncated: true };
+  for (const k of KNOWN_KEYS) if (k in r) known[k] = bound(r[k], 3, MAX_TEXT * 2);
+  return JSON.stringify(known);
+}

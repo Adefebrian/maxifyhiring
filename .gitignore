@@ -13,3 +13,6 @@ dist/
 # /jal-debug evidence: LLM trace lines (redacted, but they hold user prompts) and debug captures.
 **/.jal/traces/
 **/.jal/debug/
+
+# local SQLite
+apps/api/data/*.sqlite*

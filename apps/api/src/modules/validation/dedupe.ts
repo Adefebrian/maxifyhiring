@@ -21,15 +21,18 @@ export type Match =
 const WINDOW_DAYS = 90;
 const NAME_THRESHOLD = 0.9;
 
+// Keep letters from every script. Folding to [a-z] turned every non-Latin
+// name into "", and two empty names compared as identical (F3).
 function fold(s: string): string {
-  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z ]/g, "").replace(/\s+/g, " ").trim();
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L} ]/gu, "").replace(/\s+/g, " ").trim();
 }
 
 /** Normalised Levenshtein similarity in [0, 1]. */
 export function nameSimilarity(a: string, b: string): number {
   const x = fold(a);
   const y = fold(b);
-  if (!x.length && !y.length) return 1;
+  // A name with no letters carries no identity signal: never a match.
+  if (!x.length || !y.length) return 0;
   const prev = Array.from({ length: y.length + 1 }, (_, i) => i);
   for (let i = 1; i <= x.length; i++) {
     let diag = prev[0]!;
