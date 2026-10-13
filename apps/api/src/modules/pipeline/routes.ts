@@ -10,6 +10,7 @@ import { advance } from "./sim";
 import { ACTION_TARGET, STATES, type HumanAction } from "./states";
 import { getApp, listRoles, now, type AppRow } from "./store";
 import { gridSlots } from "../scheduling";
+import { nameSimilarity } from "../validation";
 
 const QUEUE_STATES = ["human_review", "awaiting_decision", "screening_queue", "on_hold", "auto_rejected"] as const;
 
@@ -91,6 +92,35 @@ async function json(c: { req: { json: () => Promise<unknown> } }): Promise<{ ok:
 export function createPipelineRoutes(deps: PipelineDeps) {
   const { db } = deps;
 
+  /** The latest agent ruling (not a human one): why the case is where it is. */
+  const ruling = (id: string) => {
+    const r = db
+      .query<Record<string, any>, { id: string }>("SELECT * FROM routing_decisions WHERE app_id = $id AND decided_by <> 'human' ORDER BY id DESC LIMIT 1")
+      .get({ id });
+    return r ? decisionRow(r) : null;
+  };
+
+  /** For a possible-duplicate review: the earlier application it matched and how. */
+  const match = (a: AppRow) => {
+    if (a.state !== "human_review") return null;
+    const r = ruling(a.id);
+    if (!r || r.stage !== "dedupe") return null;
+    const tag = (r.ruleHits as string[]).find((h) => h.startsWith("MATCHES:"));
+    const other = tag ? getApp(db, tag.slice("MATCHES:".length)) : null;
+    if (!other) return null;
+    return {
+      id: other.id,
+      name: other.name,
+      email: other.email,
+      phone: other.phone,
+      state: other.state,
+      submittedAt: other.submitted_at,
+      sameEmail: !!a.email && a.email === other.email,
+      samePhone: !!a.phone && a.phone === other.phone,
+      nameSimilarity: a.name && other.name ? Math.round(nameSimilarity(a.name, other.name) * 100) / 100 : 0,
+    };
+  };
+
   return new Hono()
     .get("/stats", (c) => {
       const byState = Object.fromEntries(STATES.map((s) => [s, 0])) as Record<string, number>;
@@ -153,6 +183,8 @@ export function createPipelineRoutes(deps: PipelineDeps) {
           .query<Record<string, any>, { id: string }>("SELECT i.*, v.name AS interviewer_name FROM interviews i JOIN interviewers v ON v.id = i.interviewer_id WHERE app_id = $id ORDER BY i.id")
           .all({ id })
           .map(interviewRow),
+        ruling: ruling(a.id),
+        match: match(a),
         duplicates: db.query<{ id: string; name: string; state: string }, { id: string }>("SELECT id, name, state FROM applications WHERE duplicate_of = $id ORDER BY id").all({ id }),
         actions: allowedActions(deps, a),
       });
@@ -213,7 +245,7 @@ export function createPipelineRoutes(deps: PipelineDeps) {
       const rows = db
         .query<AppRow, []>(`SELECT * FROM applications WHERE state IN (${QUEUE_STATES.map((s) => `'${s}'`).join(",")}) ORDER BY next_action_due, id`)
         .all();
-      return c.json({ items: rows.map((r) => ({ ...summary(r, roles), actions: allowedActions(deps, r) })) });
+      return c.json({ items: rows.map((r) => ({ ...summary(r, roles), actions: allowedActions(deps, r), ruling: ruling(r.id), match: match(r) })) });
     })
     .post("/decisions/:id", async (c) => {
       const parsed = await json(c);

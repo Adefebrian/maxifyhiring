@@ -8,7 +8,7 @@ import type { JevOptions } from "../jev";
 import { route } from "../routing";
 import { findSlot, type Busy, type Interviewer } from "../scheduling";
 import type { Decision, Role } from "../shared";
-import { findDuplicate, judgeFuzzy, validate, type Existing } from "../validation";
+import { findDuplicate, fixSummary, judgeFuzzy, validate, type Existing } from "../validation";
 import { AUTOMATED, type State } from "./states";
 import { createApplication, getApp, listRoles, now, transition, type AppRow, type Faults } from "./store";
 
@@ -91,7 +91,7 @@ async function stepValidating(deps: PipelineDeps, a: AppRow, roles: Map<string, 
     transition(db, a.id, {
       to: "invalid",
       owner: RECRUITER,
-      nextAction: `Ask candidate to fix: ${errors.map((e) => e.code).join(", ")}`,
+      nextAction: `Ask candidate to ${fixSummary(errors).charAt(0).toLowerCase()}${fixSummary(errors).slice(1)}`,
       due: hours(db, 48),
       actor: "agent:validator",
       note: `${errors.length} validation error(s)`,
