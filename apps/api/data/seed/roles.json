@@ -1,0 +1,6 @@
+[
+  { "code": "BE", "title": "Backend Engineer", "status": "open", "must_have": ["typescript", "postgres", "api design", "testing"], "nice_to_have": ["bun", "redis", "docker"], "min_years": 3, "location": "Jakarta", "remote_ok": true, "hiring_manager": "Dimas" },
+  { "code": "OPS", "title": "Operations Analyst", "status": "open", "must_have": ["sql", "excel", "process mapping"], "nice_to_have": ["python", "looker"], "min_years": 2, "location": "Surabaya", "remote_ok": false, "hiring_manager": "Sari" },
+  { "code": "PD", "title": "Product Designer", "status": "open", "must_have": ["figma", "user research", "prototyping"], "nice_to_have": ["design systems", "motion"], "min_years": 2, "location": "Jakarta", "remote_ok": true, "hiring_manager": "Maya" },
+  { "code": "DS", "title": "Data Scientist", "status": "closed", "must_have": ["python", "statistics", "sql"], "nice_to_have": ["pytorch"], "min_years": 3, "location": "Jakarta", "remote_ok": true, "hiring_manager": "Dimas" }
+]

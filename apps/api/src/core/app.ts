@@ -1,28 +1,35 @@
-// Assembles the Hono app: hardening middleware, health check, and every
-// domain module, each wired with the core port adapters it needs. This is
-// the one place in the codebase that is allowed to know both "modules" and
-// "adapters" at once; a module itself never reaches for an adapter or a raw
-// infra client directly (see ../modules/example and tools/check-boundaries.ts).
+// Assembles the Hono app: hardening middleware, health check, and the
+// pipeline module wired with its database, JEV options, and the optional
+// gpt-4o-mini summariser. `createApp()` takes its dependencies so tests and
+// the reliability harness can inject an in-memory database and a fake fetch.
 //
-// The route registrations below are chained (`.get(...).route(...)`) rather
-// than called as separate statements. Hono's RPC typing (`hc<AppType>`, see
-// apps/web/src/client.ts) only accumulates a route's schema into the type of
-// the variable that the call is assigned to; a bare `app.get(...)` statement
-// whose return value is discarded still registers the route at runtime but
-// leaves the compile-time type of `app` unchanged. Chaining is required for
-// AppType to actually describe the routes.
+// Routes are chained so Hono's RPC typing (`hc<AppType>`) sees them.
 import { Hono } from "hono";
-import { createRedisCacheAdapter } from "./adapters/redis";
+import { createPipelineModule, type PipelineDeps } from "../modules/pipeline";
+import { summarizeCv } from "../lib/ai";
+import { openDb } from "./db";
 import { applyHardening } from "./hardening";
-import { createExampleModule } from "../modules/example";
 
-const base = new Hono();
+export function createApp(deps: PipelineDeps) {
+  const base = new Hono();
+  applyHardening(base);
+  base.onError((err, c) => {
+    // eslint-disable-next-line no-console
+    console.error("[api] unhandled", err instanceof Error ? err.message : err);
+    return c.json({ error: "Internal error" }, 500);
+  });
+  return base.get("/health", (c) => c.json({ ok: true })).route("/api", createPipelineModule(deps));
+}
 
-applyHardening(base);
+export function defaultDeps(): PipelineDeps {
+  return {
+    db: openDb(process.env.DB_PATH ?? ":memory:"),
+    jev: {},
+    summarize: process.env.OPENAI_API_KEY ? summarizeCv : undefined,
+  };
+}
 
-const app = base
-  .get("/health", (c) => c.json({ ok: true }))
-  .route("/example", createExampleModule({ cache: createRedisCacheAdapter() }));
+const app = createApp(defaultDeps());
 
 export { app };
 export type AppType = typeof app;

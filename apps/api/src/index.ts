@@ -1,15 +1,19 @@
-import { loadEnv } from "@maxifyhiring/config";
 import { app } from "./core/app";
 
 export { app };
 export type { AppType } from "./core/app";
-// Fail-fast env validation and the actual listen call only happen when this
-// file is executed directly (the real runtime entrypoint), never when it is
-// imported (e.g. by index.test.ts via `app.request(...)`). This keeps
-// `bun test` fully independent of live Postgres/Redis/S3/OpenAI.
+
+// Listen only when run directly, never when imported by tests. No
+// `export default app`: Bun would auto-serve it on top of Bun.serve below.
 if (import.meta.main) {
-  const env = loadEnv();
-  Bun.serve({ fetch: app.fetch, port: env.PORT });
+  const port = Number(process.env.API_PORT ?? process.env.PORT ?? 3461);
+  Bun.serve({ fetch: app.fetch, port });
   // eslint-disable-next-line no-console
-  console.log(`api listening on :${env.PORT}`);
+  console.log(`api listening on :${port}`);
+  if (process.env.SEED_ON_BOOT !== "0") {
+    const res = await app.request("/api/pipeline/reset", { method: "POST" });
+    const body = (await res.json()) as { processed: number; invariants: { ok: boolean } };
+    // eslint-disable-next-line no-console
+    console.log(`seeded ${body.processed} applications, invariants ${body.invariants.ok ? "OK" : "FAILED"}`);
+  }
 }

@@ -6,12 +6,12 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
-import { consumeRateLimit } from "../lib/redis";
+import { consumeRateLimit } from "../lib/ratelimit";
 
-const DEFAULT_ORIGINS = ["http://localhost:3000"];
+const DEFAULT_ORIGINS = ["http://localhost:3460"];
 const MAX_BODY_BYTES = 1_000_000; // 1 MB
 const RATE_LIMIT_WINDOW_SECONDS = 60;
-const RATE_LIMIT_MAX_REQUESTS = 120;
+const RATE_LIMIT_MAX_REQUESTS = 600;
 
 export function corsAllowlist(): string[] {
   const raw = process.env.CORS_ORIGINS;
@@ -56,18 +56,14 @@ export const bodySizeGuard: MiddlewareHandler = async (c: Context, next: Next) =
   return next();
 };
 
-/**
- * Redis-backed rate limit, keyed by client IP + route. Fails open: if Redis
- * is unreachable the request is allowed through rather than the API going
- * fully down because the cache is unavailable.
- */
+/** In-memory rate limit, keyed by client IP + route. */
 export const rateLimitMiddleware: MiddlewareHandler = async (c: Context, next: Next) => {
   const ip =
     c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
     c.req.header("x-real-ip") ??
     "unknown";
   const key = `ratelimit:${ip}:${c.req.path}`;
-  const { allowed, remaining } = await consumeRateLimit(
+  const { allowed, remaining } = consumeRateLimit(
     key,
     RATE_LIMIT_MAX_REQUESTS,
     RATE_LIMIT_WINDOW_SECONDS,

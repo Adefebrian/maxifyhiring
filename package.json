@@ -13,14 +13,10 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "dev": "turbo run dev --parallel",
-    "check:boundaries": "bun tools/check-boundaries.ts",
-    "migrate": "bun tools/migrate.ts"
+    "check:boundaries": "bun tools/check-boundaries.ts"
   },
-  "dependencies": {
-    "pg": "^8.13.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/pg": "^8.11.0",
     "turbo": "^2.5.0",
     "typescript": "^5.7.0"
   }
