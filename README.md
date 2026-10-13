@@ -1,49 +1,66 @@
 # maxifyhiring
 
-A Bun-only monorepo: Hono API, a React SPA bundled with `Bun.build()`, and shared
-UI/config packages. No Vite, no Next.js, no webpack.
+Prototype hiring application pipeline AI agent: intake, validation, duplicate
+detection, routing, simulated interview scheduling, and a human decision point.
+Every state change writes a pipeline log row (state, owner, next action, due) and
+every routing decision stores an audit reason. JEV (TypeSafe systemone) judges
+the soft calls; without it the pipeline falls back to rules and stamps the
+decision `UNVERIFIED BY JEV`.
 
-## Layout
+Product spec: [docs/PRD.md](docs/PRD.md). Design direction: [docs/design/direction.md](docs/design/direction.md).
 
-```
-apps/web/     React + TypeScript SPA, built with Bun.build(), served by Hono static server.
-apps/api/     Hono on Bun: Postgres + Redis + S3 clients, security middleware, gpt-4o-mini client.
-packages/ui/  Shared React components: bento primitives, tokens, icon wrapper, gradient presets.
-packages/config/ shared env schema.
-infra/        Per-app Dockerfile (multi-stage, slim), docker-compose for local Postgres + Redis.
-.github/workflows/ci.yml
-.jal/memory/
-```
-
-## Getting started
+## Run locally
 
 ```bash
 bun install
-cp .env.example .env   # fill in real values, never commit .env
-bun run build
-bun test
-bun run dev
+cp .env.example .env          # JEV_API_KEY and OPENAI_API_KEY are optional
+
+# API (seeds 40 dummy applications on boot; SEED_ON_BOOT=0 resumes instead)
+cd apps/api && API_PORT=3481 DB_PATH=./data/dev.sqlite CORS_ORIGINS=http://localhost:3480 bun --env-file=../../.env src/index.ts
+
+# Web (second terminal)
+cd apps/web && bun run build.ts && WEB_PORT=3480 API_URL=http://localhost:3481 bun server.ts
 ```
 
-## Scripts
+Open http://localhost:3480. Screens: `/` Pipeline, `/app/APP-001` detail,
+`/decisions` human queue, `/schedule` simulated clock and interviewer week,
+`/audit` every routing decision with Export JSON.
 
-- `bun run build` - `turbo run build` across all workspaces.
-- `bun test` - runs every `*.test.ts`/`*.test.tsx` in the workspace (happy-dom for
-  apps/web, direct `app.request()` for apps/api, no live services required).
-- `bun run typecheck` - `tsc --noEmit` per workspace via turbo.
-- `bun run lint` - lint per workspace via turbo.
-- `bun run dev` - watches apps/web (rebuild on save) and apps/api (restart on save)
-  in parallel. No Vite dev server, no HMR: a full rebuild on each save, by design,
-  so dev and prod share the exact same build path.
+## Pipeline
 
-## Stack
+```
+received -> validating -> invalid | duplicate | valid | human_review (possible duplicate)
+valid    -> scheduling | screening_queue | human_review | auto_rejected
+scheduling -> interview_scheduled | human_review (no slot)
+interview_scheduled -> interview_done -> awaiting_decision -> offer | rejected | on_hold
+```
 
-Bun runtime and package manager, Hono for HTTP, React for the SPA, TypeScript
-everywhere, Docker for local parity, Redis for rate limiting and caching,
-Turborepo for task orchestration. Vite, Next.js, webpack, and Create React App
-are not used anywhere in this repository.
+- Rules decide the clear cases: validation codes, exact duplicates (same email
+  and role), clear score bands (>= 70 schedule, 50 to 69 screen, < 35 auto-reject),
+  and slot search on a fixed WIB grid.
+- JEV decides soft calls: a score within 5 of a band edge, conflicting signals, and
+  fuzzy duplicates (same phone or similar name). Only anonymised features are sent.
+- A JEV verdict under 60% confidence is an abstention and goes to a person; a
+  borderline case is never auto-rejected; offers and rejections are human only and
+  need a written reason.
 
-## Deploy
+## Dummy data
 
-Build the images in `infra/Dockerfile.api` and `infra/Dockerfile.web`, then deploy
-through Coolify. See `infra/coolify.md` for the exact steps.
+`apps/api/data/seed/`: 40 applications (24 valid across three roles, 9 invalid,
+3 exact duplicates, 3 fuzzy duplicate reviews, borderline routing cases, one
+candidate who misses an interview once and one who misses twice, two candidates
+whose availability has no free slot), 4 roles (one closed), 6 interviewers with
+busy calendars.
+
+## Tests
+
+```bash
+cd apps/api && bun test     # unit suite + reliability harness F1-F8
+cd apps/web && bun test
+bun run build && bun run check:boundaries
+```
+
+`apps/api/src/reliability/` covers eight failure types: JEV unavailable, JEV bad
+answer, malformed intake, duplicate race, scheduling conflict, crash mid-pipeline,
+illegal transition or bad human input, and LLM failure. Every scenario ends with
+`checkInvariants()` (also served at `GET /api/health/invariants`).
