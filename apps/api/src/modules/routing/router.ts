@@ -3,7 +3,7 @@
 // disagree, is a soft call that JEV judges. A borderline case is never
 // auto-rejected: JEV is not even offered that option, and the fallback
 // without a verified JEV answer is a human.
-import { askChoice, UNVERIFIED, type JevOptions } from "../jev";
+import { askChoice, MIN_ACT_CONFIDENCE, UNVERIFIED, type JevOptions } from "../jev";
 import type { Decision, Role } from "../shared";
 
 export type Route = "scheduling" | "screening_queue" | "human_review" | "auto_rejected";
@@ -107,6 +107,22 @@ export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise
     jev,
   );
 
+  if (v.verified && v.choice !== "human_review" && v.confidence < MIN_ACT_CONFIDENCE) {
+    return {
+      score: s,
+      decision: {
+        stage: "route",
+        decidedBy: "jev",
+        verified: true,
+        stamp: null,
+        decision: "human_review",
+        confidence: v.confidence,
+        reason: `Soft call (${soft}). JEV leaned ${v.choice} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so the hiring manager decides. Score ${s.total} (${breakdown}).`,
+        ruleHits: [...s.hits, "SOFT_CALL", "JEV_LOW_CONFIDENCE"],
+        jev: { model: v.model, choice: v.choice, probabilities: v.probabilities },
+      },
+    };
+  }
   if (v.verified) {
     return {
       score: s,

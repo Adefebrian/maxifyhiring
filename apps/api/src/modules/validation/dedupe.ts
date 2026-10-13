@@ -1,7 +1,7 @@
 // Duplicate detection. Exact matches (same email for the same role) are a
 // rule call. Fuzzy matches (same phone, or a near-identical name) are a soft
 // call, so JEV judges them; without a verified JEV answer they go to a human.
-import { askChoice, UNVERIFIED, type JevOptions } from "../jev";
+import { askChoice, MIN_ACT_CONFIDENCE, UNVERIFIED, type JevOptions } from "../jev";
 import type { Decision } from "../shared";
 
 export type Existing = {
@@ -97,6 +97,19 @@ export async function judgeFuzzy(
     jev,
   );
   const hits = m.ruleHits.filter((h) => !h.startsWith("MATCHES:")).join(", ");
+  if (v.verified && v.choice !== "human_review" && v.confidence < MIN_ACT_CONFIDENCE) {
+    return {
+      stage: "dedupe",
+      decidedBy: "jev",
+      verified: true,
+      stamp: null,
+      decision: "human_review",
+      confidence: v.confidence,
+      reason: `JEV leaned ${v.choice} at ${Math.round(v.confidence * 100)}%, below the ${MIN_ACT_CONFIDENCE * 100}% floor for acting alone, so a recruiter confirms the possible duplicate of ${m.of} (${hits}, name similarity ${m.similarity}).`,
+      ruleHits: [...m.ruleHits, "JEV_LOW_CONFIDENCE"],
+      jev: { model: v.model, choice: v.choice, probabilities: v.probabilities },
+    };
+  }
   if (v.verified) {
     return {
       stage: "dedupe",

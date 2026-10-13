@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "echo 'apps/api ships as TypeScript source, no build step needed for Bun runtime' && exit 0",
-    "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
+    "dev": "bun --env-file=../../.env --watch src/index.ts",
+    "start": "bun --env-file=../../.env src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'no lint configured for apps/api' && exit 0"

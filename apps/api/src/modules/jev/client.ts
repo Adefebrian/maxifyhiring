@@ -11,6 +11,13 @@ const RETRY = new Set([429, 500, 502, 503, 504, 529]);
 
 export const UNVERIFIED = "UNVERIFIED BY JEV" as const;
 
+/**
+ * Below this confidence a verified JEV verdict is advice, not an action: the
+ * pipeline routes to a person instead. Live JEV once merged two siblings who
+ * share a phone at 38% confidence.
+ */
+export const MIN_ACT_CONFIDENCE = 0.6;
+
 export type ChoiceQuestion = {
   type: "choice";
   instructions: string;

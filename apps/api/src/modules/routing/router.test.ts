@@ -27,6 +27,18 @@ describe("score", () => {
 });
 
 describe("route", () => {
+  test("a low-confidence JEV route goes to a person, not to scheduling", async () => {
+    const { decision } = await route(borderline, BE, fakeJev("scheduling", 0.18));
+    expect(decision).toMatchObject({ decidedBy: "jev", verified: true, decision: "human_review", confidence: 0.18 });
+    expect(decision.ruleHits).toContain("JEV_LOW_CONFIDENCE");
+    expect(decision.reason).toContain("below the 60% floor");
+  });
+
+  test("a confident JEV route is acted on", async () => {
+    const { decision } = await route(borderline, BE, fakeJev("screening_queue", 0.8));
+    expect(decision).toMatchObject({ decidedBy: "jev", decision: "screening_queue" });
+  });
+
   test("clear high band is a rule scheduling decision", async () => {
     const { decision } = await route(strong, BE, { apiKey: "" });
     expect(decision).toMatchObject({ decidedBy: "rule", decision: "scheduling", verified: true, confidence: 1 });

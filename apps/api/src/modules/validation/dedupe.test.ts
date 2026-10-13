@@ -70,6 +70,17 @@ describe("judgeFuzzy", () => {
     expect(d.reason.length).toBeGreaterThan(0);
   });
 
+  test("a low-confidence JEV merge never links two people on its own", async () => {
+    // Live JEV once marked a sibling sharing a phone as a duplicate at 38%.
+    const d = await judgeFuzzy(m, false, fakeJev("mark_duplicate", 0.38));
+    expect(d.decision).toBe("human_review");
+    expect(d.decidedBy).toBe("jev");
+    expect(d.verified).toBe(true);
+    expect(d.confidence).toBe(0.38);
+    expect(d.ruleHits).toContain("JEV_LOW_CONFIDENCE");
+    expect(d.reason).toContain("below the 60% floor");
+  });
+
   test("no key falls back to human_review stamped UNVERIFIED BY JEV", async () => {
     const d = await judgeFuzzy(m, false, { apiKey: "" });
     expect(d.decision).toBe("human_review");
