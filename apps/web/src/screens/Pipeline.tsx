@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import type { Api, AppSummary, State, Stats } from "../api";
 import { dueKey, fmtDayTime, owner, plural, roleOf, STATE_LABEL, STATE_ORDER } from "../format";
 import { Glyph } from "../icons";
-import { Due, Empty, KeepIds, LoadError, Notice, PageHeader, SkeletonRows, StateBadge, useLoad } from "../parts";
+import { Due, Empty, KeepIds, LoadError, Notice, PageHeader, SkeletonRows, useLoad } from "../parts";
 
 const OVERDUE = "__overdue";
 
@@ -187,7 +187,6 @@ export function Pipeline({ api, initialState, onChanged }: { api: Api; initialSt
             <div className="list rec-list">
               <div className="rec-head" aria-hidden="true">
                 <span>Applicant</span>
-                <span>State</span>
                 <span>Owner</span>
                 <span>Next action</span>
                 <span>Due</span>
@@ -199,9 +198,6 @@ export function Pipeline({ api, initialState, onChanged }: { api: Api; initialSt
                     <span className="rec-meta">
                       {roleOf(a)}, <span className="nowrap">{a.id}</span>
                     </span>
-                  </span>
-                  <span className="rec-state">
-                    <StateBadge state={a.state} />
                   </span>
                   <span className="rec-owner">{owner(a.owner)}</span>
                   <span className="rec-next">

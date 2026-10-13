@@ -1,19 +1,20 @@
 // Screen 2, Application detail (the case file). Concepts (ui.region_gate):
 //   head        divided-section  who this is and where the case stands
-//   decide      card             the human decision, only when the API offers actions,
-//                                with the agent's ruling (and the duplicate compare) above it
-//   issues      section          validation problems, or the duplicate link
-//   decisions   rows             every ruling with its seal: rule, verified by JEV, JEV abstained, unverified
+//   facts       plain-spacing    what the applicant submitted, an unboxed two-column list
+//   issues      section          "What blocks it": validation problems only
+//   links       rows             "Linked applications": confirmed duplicate links
+//   decisions   rows             every ruling with its seal, hairline rows, no enclosing card
+//   decide      card             the human decision directly under the latest ruling (shown
+//                                once, not repeated), with the duplicate compare when open
 //   interviews  rows             booked, done or no-show interviews
-//   facts       card             what the applicant submitted
-//   log         rows             state changes as plain rows (no connector lines, no marker dots)
-// Every section has its heading outside its container, one pattern down the page.
+//   log         rows             state changes as plain hairline rows (no connectors, no dots)
+// Read as a case file: one heading pattern, cards only for the decide form and compare.
 import { useState } from "react";
 import type { Api, Detail as DetailData } from "../api";
 import { DecideForm, type DecideResult } from "../DecideForm";
 import { ACTION_LABEL, confidence, DECIDED_BY_LABEL, decisionLabel, fmtDayTime, fmtTime, owner, roleOf, sealOf, STAGE_LABEL, stateLabel, topHits } from "../format";
 import { Glyph } from "../icons";
-import { Badge, Compare, Due, Empty, KeepIds, Linkify, LoadError, Notice, RulingSummary, Seal, SkeletonRows, StateBadge, useLoad } from "../parts";
+import { Badge, Compare, Due, Email, Empty, KeepIds, Linkify, LoadError, Notice, Seal, SkeletonRows, StateBadge, useLoad } from "../parts";
 
 /** A log note that only repeats what the title already says is dropped. */
 function usefulNote(note: string): string | null {
@@ -56,12 +57,11 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
     );
   }
 
-  const { app, log, decisions, errors, interviews, duplicates, actions, ruling, match } = load.data;
+  const { app, log, decisions, errors, interviews, duplicates, actions, match } = load.data;
   // A confirmed duplicate links once, neutrally. An open review (match present)
   // shows the compare inside the decide card instead.
   const linkedTo = app.state === "duplicate" ? app.duplicateOf ?? duplicates[0]?.id ?? null : null;
   const otherDupes = duplicates.filter((d) => d.id !== linkedTo && d.id !== match?.id);
-  const hasIssues = errors.length > 0 || linkedTo !== null || otherDupes.length > 0;
 
   function decided(r: DecideResult) {
     setDone(r);
@@ -107,62 +107,97 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
         </Notice>
       ) : null}
 
-      {actions.length > 0 ? (
-        <section className="band" aria-labelledby="decide-title">
-          <div className="band-head">
-            <h2 id="decide-title">Decision needed</h2>
-            <p className="band-line">The agent did not decide this one alone. Read its ruling, pick a route, and say why; the reason is kept on the audit log.</p>
+      <section className="band" aria-labelledby="facts-title">
+        <h2 id="facts-title">Submitted facts</h2>
+        <dl className="facts">
+          <div className="fact">
+            <dt>Email</dt>
+            <dd>
+              <Email value={app.email} />
+            </dd>
           </div>
-          <div className="card decide-card">
-            {ruling ? <RulingSummary r={ruling} /> : null}
-            {match ? (
-              <div className="decide-compare">
-                <p className="decide-sub">Possible duplicate</p>
-                <Compare self={app} match={match} />
-              </div>
-            ) : null}
-            <DecideForm key={app.state} api={api} appId={app.id} appOwner={app.owner} actions={actions} onDone={decided} />
+          <Fact label="Phone" value={app.phone ?? "Not given"} />
+          <Fact label="Location" value={app.location ?? "Not given"} />
+          <Fact label="Experience" value={app.yearsExp === null ? "Not given" : `${app.yearsExp} years`} />
+          <Fact label="Submitted" value={`${fmtDayTime(app.submittedAt)} WIB`} />
+          <Fact label="Consent" value={app.consent ? "Given" : "Not given"} />
+          <Fact label="Match score" value={app.score === null ? "Not scored" : String(app.score)} />
+          <Fact label="Updated" value={`${fmtDayTime(app.updatedAt)} WIB`} />
+          <div className="fact fact-wide">
+            <dt>Skills</dt>
+            <dd className="tokens">
+              {app.skills.length
+                ? app.skills.map((sk) => (
+                    <span className="token" key={sk}>
+                      {sk}
+                    </span>
+                  ))
+                : "None listed"}
+            </dd>
           </div>
+          <div className="fact fact-wide">
+            <dt>Availability</dt>
+            <dd>
+              {app.availability.length
+                ? app.availability.map((a, i) => (
+                    <span className="num" key={i}>
+                      {i > 0 ? "; " : ""}
+                      {fmtDayTime(a.start)} to {fmtTime(a.end)} WIB
+                    </span>
+                  ))
+                : "Any interviewer slot"}
+            </dd>
+          </div>
+          <div className="fact fact-wide">
+            <dt>CV text</dt>
+            <dd className="prose">{app.cvText || "No CV text."}</dd>
+          </div>
+        </dl>
+      </section>
+
+      {errors.length > 0 ? (
+        <section className="band" aria-labelledby="issues-title">
+          <h2 id="issues-title">What blocks it</h2>
+          <Notice tone="danger" title={errors.length === 1 ? "1 thing to fix" : `${errors.length} things to fix`}>
+            <ul className="plain-list issue-list">
+              {errors.map((e) => (
+                <li key={`${e.code}-${e.field}`}>
+                  <span>{e.message}</span> <span className="token">{e.code}</span>
+                </li>
+              ))}
+            </ul>
+          </Notice>
         </section>
       ) : null}
 
-      {hasIssues ? (
-        <section className="band" aria-labelledby="issues-title">
-          <h2 id="issues-title">{linkedTo && errors.length === 0 ? "Linked application" : "What blocks it"}</h2>
-          {errors.length > 0 ? (
-            <Notice tone="danger" title={errors.length === 1 ? "1 thing to fix" : `${errors.length} things to fix`}>
-              <ul className="plain-list issue-list">
-                {errors.map((e) => (
-                  <li key={`${e.code}-${e.field}`}>
-                    <span>{e.message}</span> <span className="token">{e.code}</span>
-                  </li>
-                ))}
-              </ul>
-            </Notice>
-          ) : null}
-          {linkedTo ? (
-            <div className="link-row">
-              <Glyph name="link" />
-              <p>
-                Linked as duplicate of <a href={`#/app/${linkedTo}`}>{linkedTo}</a>. The earlier application stays primary.
-              </p>
-            </div>
-          ) : null}
-          {otherDupes.length > 0 ? (
-            <div className="link-row">
-              <Glyph name="link" />
-              <p>
-                Later applications linked here:{" "}
-                {otherDupes.map((d, i) => (
-                  <span key={d.id}>
-                    {i > 0 ? ", " : ""}
-                    <a href={`#/app/${d.id}`}>{d.id}</a>
-                  </span>
-                ))}
-                .
-              </p>
-            </div>
-          ) : null}
+      {linkedTo || otherDupes.length > 0 ? (
+        <section className="band" aria-labelledby="links-title">
+          <h2 id="links-title">Linked applications</h2>
+          <ul className="rows">
+            {linkedTo ? (
+              <li className="row link-line">
+                <Glyph name="link" />
+                <p>
+                  Linked as duplicate of{" "}
+                  <a className="nowrap" href={`#/app/${linkedTo}`}>
+                    {linkedTo}
+                  </a>
+                  . The earlier application stays primary.
+                </p>
+              </li>
+            ) : null}
+            {otherDupes.map((d) => (
+              <li className="row link-line" key={d.id}>
+                <Glyph name="link" />
+                <p>
+                  <a className="nowrap" href={`#/app/${d.id}`}>
+                    {d.id}
+                  </a>{" "}
+                  ({d.name}) is linked here as a later duplicate of this application.
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 
@@ -171,7 +206,7 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
         {decisions.length === 0 ? (
           <Empty title="No decisions yet">The agent has not ruled on this application.</Empty>
         ) : (
-          <ol className="list">
+          <ol className="rows">
             {decisions.map((d) => {
               const hits = topHits(d.ruleHits, 8);
               return (
@@ -202,12 +237,30 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
         )}
       </section>
 
+      {actions.length > 0 ? (
+        <section className="band" aria-labelledby="decide-title">
+          <div className="band-head">
+            <h2 id="decide-title">Decision needed</h2>
+            <p className="band-line">The latest ruling above stopped short of deciding. Pick a route and say why; the reason is kept on the audit log.</p>
+          </div>
+          <div className="card decide-card">
+            {match ? (
+              <div className="decide-compare">
+                <p className="decide-sub">Possible duplicate</p>
+                <Compare self={app} match={match} />
+              </div>
+            ) : null}
+            <DecideForm key={app.state} api={api} appId={app.id} appOwner={app.owner} actions={actions} onDone={decided} />
+          </div>
+        </section>
+      ) : null}
+
       <section className="band" aria-labelledby="iv-title">
         <h2 id="iv-title">Interviews</h2>
         {interviews.length === 0 ? (
           <p className="band-empty">No interview booked for this application.</p>
         ) : (
-          <ul className="list">
+          <ul className="rows">
             {interviews.map((iv) => (
               <li className="row" key={iv.id}>
                 <div className="row-main">
@@ -225,54 +278,9 @@ export function Detail({ api, id, now, onChanged }: { api: Api; id: string; now:
         )}
       </section>
 
-      <section className="band" aria-labelledby="facts-title">
-        <h2 id="facts-title">Submitted facts</h2>
-        <div className="card">
-          <dl className="facts">
-            <Fact label="Email" value={app.email} />
-            <Fact label="Phone" value={app.phone ?? "Not given"} />
-            <Fact label="Location" value={app.location ?? "Not given"} />
-            <Fact label="Experience" value={app.yearsExp === null ? "Not given" : `${app.yearsExp} years`} />
-            <Fact label="Submitted" value={`${fmtDayTime(app.submittedAt)} WIB`} />
-            <Fact label="Consent" value={app.consent ? "Given" : "Not given"} />
-            <Fact label="Match score" value={app.score === null ? "Not scored" : String(app.score)} />
-            <Fact label="Updated" value={`${fmtDayTime(app.updatedAt)} WIB`} />
-            <div className="fact fact-wide">
-              <dt>Skills</dt>
-              <dd className="tokens">
-                {app.skills.length
-                  ? app.skills.map((s) => (
-                      <span className="token" key={s}>
-                        {s}
-                      </span>
-                    ))
-                  : "None listed"}
-              </dd>
-            </div>
-            <div className="fact fact-wide">
-              <dt>Availability</dt>
-              <dd>
-                {app.availability.length
-                  ? app.availability.map((a, i) => (
-                      <span className="num" key={i}>
-                        {i > 0 ? "; " : ""}
-                        {fmtDayTime(a.start)} to {fmtTime(a.end)} WIB
-                      </span>
-                    ))
-                  : "Any interviewer slot"}
-              </dd>
-            </div>
-            <div className="fact fact-wide">
-              <dt>CV text</dt>
-              <dd className="prose">{app.cvText || "No CV text."}</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-
       <section className="band" aria-labelledby="log-title">
         <h2 id="log-title">Pipeline log</h2>
-        <ol className="list">
+        <ol className="rows">
           {log.map((l) => {
             const note = usefulNote(l.note);
             return (

@@ -233,7 +233,7 @@ function Agenda({ data, days }: { data: ScheduleData; days: string[] }) {
   for (const p of data.interviewers) {
     for (const b of p.busy) {
       if (Date.parse(b.start) < e && Date.parse(b.end) > s) {
-        rows.push({ key: `b-${p.id}-${b.start}`, start: Math.max(Date.parse(b.start), s), time: blockTime(b.start, b.end, s, e), title: b.label, who: p.name, status: "busy" });
+        rows.push({ key: `b-${p.id}-${b.start}`, start: Math.max(Date.parse(b.start), s), time: capFirst(blockTime(b.start, b.end, s, e)), title: b.label, who: p.name, status: "busy" });
       }
     }
   }
@@ -289,11 +289,15 @@ function Agenda({ data, days }: { data: ScheduleData; days: string[] }) {
   );
 }
 
+function capFirst(t: string): string {
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 function blockTime(start: string, end: string, dayS: number, dayE: number): string {
   const s = Date.parse(start);
   const e = Date.parse(end);
   if (s <= dayS && e >= dayE) return "All day";
-  const from = s < dayS ? "Start of day" : fmtTime(start);
+  const from = s < dayS ? "start of day" : fmtTime(start);
   const to = e > dayE ? "end of day" : fmtTime(end);
   return `${from} to ${to}`;
 }

@@ -196,8 +196,17 @@ export const STAGE_LABEL: Record<string, string> = {
 };
 
 /** Decision values read as words: "human_review" becomes "human review". */
+const DECISION_LABEL: Record<string, string> = {
+  no_slot: "No interview slot",
+  mark_duplicate: "Mark duplicate",
+  keep_both: "Keep both",
+};
+
+/** Decision values in one casing everywhere: sentence case ("Mark duplicate",
+ * "No interview slot", "Human review"). */
 export function decisionLabel(d: string): string {
-  return STATE_LABEL[d as State] ?? d.replace(/_/g, " ");
+  const label = DECISION_LABEL[d] ?? STATE_LABEL[d as State] ?? d.replace(/_/g, " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function confidence(c: number | null): string {

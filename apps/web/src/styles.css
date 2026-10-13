@@ -349,8 +349,28 @@ a {
   margin-top: var(--space-2px);
 }
 
+/* Due: the relative time on line one, the WIB date under it in secondary text. */
+.due-text {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.due-rel {
+  white-space: nowrap;
+}
+
 .due-at {
   white-space: nowrap;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-weight: var(--weight-regular);
+  color: var(--color-ink-muted);
+}
+
+.email {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .due[data-kind="soon"] {
@@ -460,6 +480,38 @@ a {
 
 .list > * + * {
   border-top: 1px solid var(--color-border);
+}
+
+/* Case-file rows: no enclosing card, a hairline between records and at both
+   ends, content on the page's own left line. */
+.rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.rows > * {
+  min-width: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.rows > :last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rows > .row,
+.rows > .ruling {
+  padding-inline: 0;
+}
+
+.row.link-line {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.link-line > .icon {
+  margin-top: var(--space-2px);
+  color: var(--color-ink-muted);
 }
 
 .row {
@@ -656,12 +708,12 @@ a {
    column headers per group (the state badge moves to the group title). */
 .rec {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "main state"
-    "owner owner"
-    "next next"
-    "due due";
+    "main"
+    "owner"
+    "next"
+    "due";
   gap: var(--space-4px) var(--space-12px);
   align-items: start;
   min-height: var(--control-h);
@@ -727,10 +779,6 @@ a {
   .rec {
     min-height: var(--density-row-h);
     padding: var(--density-row-pad-block) var(--space-16px);
-  }
-  .rec-state,
-  .rec-head > span:nth-child(2) {
-    display: none;
   }
   .rec-owner,
   .rec-next,
@@ -1028,8 +1076,8 @@ a {
 
 .facts {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-16px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16px) var(--space-24px);
 }
 
 .fact-wide {
@@ -1483,7 +1531,7 @@ a {
 
 @media (min-width: 640px) {
   .compare-row {
-    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 88px minmax(0, 1fr) minmax(0, 1fr);
   }
   .compare-label {
     grid-column: auto;

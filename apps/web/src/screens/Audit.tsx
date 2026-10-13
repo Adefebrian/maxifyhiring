@@ -129,7 +129,7 @@ export function Audit({ api, initial }: { api: Api; initial: { decidedBy?: strin
                   <a className="rec-title link-quiet" href={`#/app/${g.appId}`}>
                     {g.name}
                   </a>{" "}
-                  <span className="rec-meta num">{g.appId}</span>
+                  <span className="rec-meta num nowrap">{g.appId}</span>
                 </span>
               </div>
               {g.rows.map((d) => (

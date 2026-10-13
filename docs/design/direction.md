@@ -15,7 +15,7 @@ Preset: D2 single_signal_ledger (JAL Core knob set, not a design system)
 Thesis: accountability is the product. Every screen answers who decided, on what grounds, and who acts next by when. Refuses the kanban card wall.
 Own world: near-monochrome ink on a cool page, one blue that only fills the single primary action of a view, status tints only for real state (overdue, invalid, unverified, verified), tabular figures for every time and count, records as hairline-divided rows.
 Story: understand where the queue stands, believe the agent's calls because each shows its reason and stamp, then decide the cases it handed over.
-First viewport: 375: app-shell header, page title with the sim clock line, the six-count stat card (2 by 3), then the first state group of rows; bottom bar Pipeline, Decisions, Schedule, Audit. 1280: rail header with the four destinations, title and Reset action on one line, stat card as one row of six, toolbar, then grouped docket rows with column headers.
+First viewport: 375: app-shell header, page title with the sim clock line and the Reset action as an icon button, one row of the three counts that need a person (Waiting on a person, Overdue, Unverified JEV calls) with a "Show all counts" disclosure for the other three, search and state side by side, then the first state group with its first record above the fold; bottom bar Pipeline, Decisions, Schedule, Audit. 1280: rail header with the four destinations, title and Reset action on one line, stat card as one row of six, toolbar, then grouped docket rows with column headers.
 Signature moment: none (product UI, tier 1 cap).
 Nav / Footer archetype: header rail, bottom bar (Material bar). Overrides D2's island plus split because a 4-destination tool has no single conversion action to load into the bar.
 Compositions: product screens, no marketing kit compositions. Hand-written layout inside the app shell: page header, StatRow card, toolbar, grouped record rows, DataTable, dialog. Reason: daily-use app screens, the kit compositions are marketing bands.
@@ -61,6 +61,7 @@ eyebrow labels, no purple/violet/indigo, no overlap, 44px controls, mobile app-s
 | Pipeline board is grouped docket rows, column headers from 1024px | ui.region_gate board rows | Kanban columns of 16 and 2 items leave dead columns; rows keep every group scannable |
 | New application form not built | ui.region_gate newapp relevance 0.92 | dropped by veto |
 | Detail is one column capped at 880px | layout doctrine | a side column beside a long docket leaves dead space |
+| 375 stat card is 3 counts plus a disclosure, not a 2 by 3 grid | critic round 1, fix 3; kept in round 2 (fix 8) | A 2 by 3 grid at 375 pushes the first record of the first group below the fold (812 tall, 76px bottom bar). The three kept counts are the ones that ask a person to act; the other three are one tap away and every count shows from 640px |
 | Icons are inline SVG through Icon | koboyo MCP has no key in this session | fallback, flagged in the build report |
 
 ## Open decisions

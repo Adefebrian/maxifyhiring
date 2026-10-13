@@ -33,7 +33,7 @@ export function Seal({ d, withLean = true }: { d: SealInput; withLean?: boolean 
         <Glyph name={icon} size={16} />
         <span>{sealLabel(d)}</span>
       </span>
-      {lean ? <span className="seal-lean">Leaned to {lean.toLowerCase()}</span> : null}
+      {lean ? <span className="seal-lean">Leaned to {lean}</span> : null}
     </span>
   );
 }
@@ -64,6 +64,22 @@ export function RulingSummary({ r, clamp = false }: { r: Ruling; clamp?: boolean
   );
 }
 
+/** An email that only breaks at its natural seams (before "@" and before
+ * each "."), never mid-token. */
+export function Email({ value }: { value: string }) {
+  const parts = value.split(/(?=[@.])/);
+  return (
+    <span className="email">
+      {parts.map((p, i) => (
+        <span key={i}>
+          {i > 0 ? <wbr /> : null}
+          {p}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** One compare verdict: a match signal reads in warning ink with its icon. */
 function Verdict({ hit, yes, no }: { hit: boolean; yes: string; no: string }) {
   return (
@@ -76,9 +92,9 @@ function Verdict({ hit, yes, no }: { hit: boolean; yes: string; no: string }) {
 
 /** Side by side: this application against the earlier one it may duplicate. */
 export function Compare({ self, match }: { self: { id: string; name: string; email: string; phone?: string | null; submittedAt: string }; match: Match }) {
-  const rows: [string, string, string][] = [
+  const rows: [string, ReactNode, ReactNode][] = [
     ["Name", self.name, match.name],
-    ["Email", self.email, match.email],
+    ["Email", <Email value={self.email} />, <Email value={match.email} />],
     ["Phone", self.phone === undefined ? "Loading" : (self.phone ?? "Not given"), match.phone ?? "Not given"],
     ["Submitted", `${fmtDayTime(self.submittedAt)} WIB`, `${fmtDayTime(match.submittedAt)} WIB`],
   ];
@@ -152,8 +168,9 @@ export function Due({ iso, now }: { iso: string | null; now: string | null }) {
   return (
     <span className="due" data-kind={d.kind} data-overdue={d.overdue ? "" : undefined}>
       {d.overdue ? <Glyph name="alert" size={16} /> : <Glyph name="clock" size={16} />}
-      <span>
-        {d.label}, <span className="due-at">{d.at} WIB</span>
+      <span className="due-text">
+        <span className="due-rel">{d.label}</span>
+        <span className="due-at">{d.at} WIB</span>
       </span>
     </span>
   );

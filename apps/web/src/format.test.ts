@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { due, fmtDayTime, leanedTo, owner, queueGroup, sealLabel, sealOf, span, STATE_ORDER, STATE_LABEL, wibDate } from "./format";
+import { decisionLabel, due, fmtDayTime, leanedTo, owner, queueGroup, sealLabel, sealOf, span, STATE_ORDER, STATE_LABEL, wibDate } from "./format";
 
 describe("format", () => {
   test("shows times in WIB", () => {
@@ -45,12 +45,21 @@ describe("seals", () => {
     const d = { ...base, decidedBy: "jev", confidence: 0.38, ruleHits: ["DUP_SAME_PHONE", "JEV_LOW_CONFIDENCE"], jev: { choice: "mark_duplicate" } };
     expect(sealOf(d)).toBe("abstained");
     expect(sealLabel(d)).toBe("JEV abstained, 38% < 60%, routed to human");
-    expect(leanedTo(d)).toBe("mark duplicate");
+    expect(leanedTo(d)).toBe("Mark duplicate");
   });
-  test("JEV choosing a person is routed (neutral), never green, whatever its confidence", () => {
-    const d = { ...base, decidedBy: "jev", decision: "human_review", confidence: 0.2, ruleHits: ["SOFT_CALL"], jev: { probabilities: { scheduling: 0.3, human_review: 0.47 } } };
+  test("JEV choosing a person at or above the floor (no JEV_LOW_CONFIDENCE hit) is routed, neutral, never green", () => {
+    const d = { ...base, decidedBy: "jev", decision: "human_review", confidence: 0.64, ruleHits: ["SOFT_CALL"], jev: { probabilities: { scheduling: 0.2, human_review: 0.64 } } };
     expect(sealOf(d)).toBe("routed");
     expect(sealLabel(d)).toBe("JEV routed to human");
+  });
+  test("JEV choosing a person under the floor carries JEV_LOW_CONFIDENCE and abstains", () => {
+    const d = { ...base, decidedBy: "jev", decision: "human_review", confidence: 0.2, ruleHits: ["SOFT_CALL", "JEV_LOW_CONFIDENCE"], jev: { probabilities: { scheduling: 0.3, human_review: 0.47 } } };
+    expect(sealOf(d)).toBe("abstained");
+  });
+  test("decision labels share one sentence casing", () => {
+    expect(decisionLabel("mark_duplicate")).toBe("Mark duplicate");
+    expect(decisionLabel("no_slot")).toBe("No interview slot");
+    expect(decisionLabel("human_review")).toBe("Human review");
   });
   test("a stamped fallback is unverified", () => {
     expect(sealOf({ ...base, decidedBy: "rule", verified: false, stamp: "UNVERIFIED BY JEV" })).toBe("unverified");
