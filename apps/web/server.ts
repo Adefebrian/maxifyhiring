@@ -51,6 +51,16 @@ app.use(
 // it touches nothing, so a slow API never restarts a healthy web container.
 app.get("/health", (c) => c.json({ ok: true }));
 
+// Runtime config for the SPA: the API origin comes from this process's
+// API_URL (the same value the CSP connect-src above allows), so one built
+// bundle runs against any API without a rebuild. A same-origin script keeps
+// script-src at 'self'; the value is JSON-encoded, never interpolated raw.
+app.get("/env.js", (c) => {
+  c.header("Content-Type", "text/javascript; charset=utf-8");
+  c.header("Cache-Control", "no-store");
+  return c.body(`window.__API_URL__=${JSON.stringify(apiOrigin).replace(/</g, "\\u003c")};`);
+});
+
 // hono/bun's serveStatic resolves `root`/`path` relative to process.cwd(),
 // not relative to this file. Use an absolute path (import.meta.dir) so the
 // server behaves the same whether it is started from apps/web, from the

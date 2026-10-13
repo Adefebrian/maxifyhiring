@@ -60,7 +60,12 @@ async function runBuild() {
     minify: true,
     // React ships its production build only when NODE_ENV is production at
     // bundle time; a dev build doubles react-dom. `NODE_ENV=development` opts out.
-    define: { "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV === "development" ? "development" : "production") },
+    // API_URL is baked in at bundle time (src/api.ts reads process.env.API_URL);
+    // server.ts allows the same origin in its CSP connect-src at runtime.
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV === "development" ? "development" : "production"),
+      "process.env.API_URL": JSON.stringify(process.env.API_URL ?? "http://localhost:3001"),
+    },
     sourcemap: "linked",
     splitting: true,
     publicPath: "/",

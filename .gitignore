@@ -16,3 +16,6 @@ dist/
 
 # local SQLite
 apps/api/data/*.sqlite*
+
+# ui_shots captures
+.jal/shots/

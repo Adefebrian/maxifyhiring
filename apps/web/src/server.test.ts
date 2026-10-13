@@ -45,6 +45,13 @@ describe("web server", () => {
     expect(body).toContain("<title>maxifyhiring");
   });
 
+  test("serves the runtime API origin as a same-origin script", async () => {
+    const res = await fetch(`http://localhost:${server.port}/env.js`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("javascript");
+    expect(await res.text()).toMatch(/^window\.__API_URL__="http/);
+  });
+
   test("falls back to index.html for an unknown deep link, not a 404", async () => {
     const res = await fetch(`http://localhost:${server.port}/some/unknown/deep-link`);
     expect(res.status).toBe(200);

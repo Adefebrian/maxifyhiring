@@ -1,93 +1,84 @@
-import { useEffect, useState } from "react";
-import { AppShell, Bento, BentoItem } from "@maxifyhiring/ui";
-import { api } from "./client";
+import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "@maxifyhiring/ui";
+import { createApi, type Api } from "./api";
+import { Glyph } from "./icons";
+import { useLoad } from "./parts";
+import { Audit } from "./screens/Audit";
+import { Decisions } from "./screens/Decisions";
+import { Detail } from "./screens/Detail";
+import { Pipeline } from "./screens/Pipeline";
+import { Schedule } from "./screens/Schedule";
 
-// Every screen lives inside the JAL Core app-shell: bottom tab bar below
-// 640px, top nav from 640px. Destinations here are the page sections.
-const DESTINATIONS = [
-  { id: "overview", label: "Overview", href: "#overview" },
-  { id: "stack", label: "Stack", href: "#stack" },
-  { id: "demo", label: "Demo", href: "#demo" },
-];
+// Hash routes: #/pipeline (default), #/app/APP-001, #/schedule, #/decisions,
+// #/audit. A query after the route pre-sets filters (#/audit?verified=false).
+export interface Route {
+  name: "pipeline" | "app" | "schedule" | "decisions" | "audit";
+  id?: string;
+  params: Record<string, string>;
+}
 
-function useCurrentSection(fallback: string): string {
-  const read = () => (typeof location === "undefined" ? "" : location.hash.slice(1)) || fallback;
-  const [current, setCurrent] = useState(read);
+export function parseRoute(hash: string, pathname = "/"): Route {
+  // The hash wins; a bare path (/schedule, /app/APP-001, served by the SPA
+  // fallback) is read when there is no hash route, so every screen also has
+  // a plain URL that a reload or a crawler can open.
+  const fromHash = hash.replace(/^#\/?/, "");
+  const raw = fromHash || pathname.replace(/^\//, "") + (typeof location === "undefined" ? "" : location.search);
+  const [path = "", qs = ""] = raw.split("?");
+  const params = Object.fromEntries(new URLSearchParams(qs));
+  const [head, id] = path.split("/");
+  if (head === "app" && id) return { name: "app", id: decodeURIComponent(id), params };
+  if (head === "schedule" || head === "decisions" || head === "audit") return { name: head, params };
+  return { name: "pipeline", params };
+}
+
+function useRoute(): Route {
+  const read = () => (typeof location === "undefined" ? parseRoute("") : parseRoute(location.hash, location.pathname));
+  const [route, setRoute] = useState(read);
   useEffect(() => {
-    const onHash = () => setCurrent(read());
+    const onHash = () => {
+      setRoute(read());
+      window.scrollTo?.({ top: 0 });
+    };
     addEventListener("hashchange", onHash);
     return () => removeEventListener("hashchange", onHash);
   }, []);
-  return current;
+  return route;
 }
 
-export function App() {
-  const current = useCurrentSection("overview");
-  // Demo call through the typed Hono RPC client (see ./client.ts): the
-  // response shape here is checked against apps/api's real route types at
-  // build time, not hand-typed. Wired to a button click rather than fired on
-  // mount, on purpose: this component renders in tests (App.test.tsx) and in
-  // a fresh dev checkout with no API server running yet, and a real fetch
-  // attempted on every render would fail noisily in both cases for no
-  // benefit, since nothing in this demo depends on the result being present.
-  const [itemCount, setItemCount] = useState<number | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+export function App({ api: injected }: { api?: Api } = {}) {
+  const api = useMemo(() => injected ?? createApi(), [injected]);
+  const route = useRoute();
+  const [version, setVersion] = useState(0);
+  // The sim clock and the human queue count feed the shell badge and every
+  // due line; any screen that changes them bumps `version`.
+  const stats = useLoad(() => api.stats(), `stats-${version}`);
+  const changed = () => setVersion((v) => v + 1);
+  const now = stats.data?.now ?? null;
+  const queue = stats.data?.humanQueue ?? 0;
 
-  async function loadItemCount() {
-    setLoadFailed(false);
-    try {
-      const res = await api.example.$get();
-      const items = await res.json();
-      setItemCount(items.length);
-    } catch {
-      // API not reachable, expected outside a full dev/deploy setup.
-      setLoadFailed(true);
-    }
-  }
-
-  // Section: hero. Job: say what this is. Message: one sentence. Action:
-  // none. Container: plain-spacing.
-  //
-  // Section: stack. Job: explain what the template gives you. Message:
-  // three balanced facts about the stack. Action: none. Container: bento
-  // (mixed summary content, all three tiles equal shape and length).
-  //
-  // Section: demo. Job: prove the typed Hono client actually works. Message:
-  // one action, one result. Action: run the demo call. Container: card (one
-  // self-contained widget), kept out of the bento above so its button and
-  // result never distort the sibling tiles' shape.
-  const resultText = itemCount !== null ? `Example items: ${itemCount}` : loadFailed ? "Could not reach the API." : "";
+  const destinations = [
+    { id: "pipeline", label: "Pipeline", href: "#/pipeline", icon: <Glyph name="pipeline" size={24} /> },
+    { id: "decisions", label: "Decisions", href: "#/decisions", icon: <Glyph name="decide" size={24} />, badge: queue },
+    { id: "schedule", label: "Schedule", href: "#/schedule", icon: <Glyph name="calendar" size={24} /> },
+    { id: "audit", label: "Audit", href: "#/audit", icon: <Glyph name="audit" size={24} /> },
+  ];
+  const current = route.name === "app" ? "pipeline" : route.name;
+  const key = `${route.name}-${route.id ?? ""}-${JSON.stringify(route.params)}`;
 
   return (
-    <AppShell title="maxifyhiring" destinations={DESTINATIONS} current={current}>
-      <div className="app">
-      <section id="overview" className="app-hero">
-        <h1>Welcome to maxifyhiring</h1>
-        <p>A Bun only monorepo: Hono API, React SPA bundled with Bun.build, no Vite, no Next.js.</p>
-      </section>
-      <Bento id="stack" className="app-bento">
-        <BentoItem span="sm">
-          <h2>Fast by default</h2>
-          <p>Bun runs the app, builds the app, and tests the app, one runtime end to end.</p>
-        </BentoItem>
-        <BentoItem span="sm">
-          <h2>Hardened API</h2>
-          <p>Secure headers, CORS allowlist, and Redis backed rate limiting ship on day one.</p>
-        </BentoItem>
-        <BentoItem span="sm">
-          <h2>Typed everywhere</h2>
-          <p>TypeScript across apps and packages, validated env, zero plain JavaScript.</p>
-        </BentoItem>
-      </Bento>
-      <section id="demo" className="app-demo">
-        <h2>Typed RPC, proven live</h2>
-        <p>Call the API through the typed Hono client and print what comes back.</p>
-        <button type="button" className="btn btn-primary" onClick={loadItemCount}>
-          Load example items
-        </button>
-        <p className="app-demo-result">{resultText}</p>
-      </section>
-      </div>
+    <AppShell
+      title="maxifyhiring"
+      brandHref="#/pipeline"
+      destinations={destinations}
+      current={current}
+      spy={false}
+      archetype={{ header: "rail", bar: "bar" }}
+    >
+      {route.name === "pipeline" ? <Pipeline key={key} api={api} initialState={route.params.state ?? ""} onChanged={changed} /> : null}
+      {route.name === "app" && route.id ? <Detail key={key} api={api} id={route.id} now={now} onChanged={changed} /> : null}
+      {route.name === "schedule" ? <Schedule key={key} api={api} onChanged={changed} /> : null}
+      {route.name === "decisions" ? <Decisions key={key} api={api} now={now} onChanged={changed} /> : null}
+      {route.name === "audit" ? <Audit key={key} api={api} initial={route.params} /> : null}
     </AppShell>
   );
 }

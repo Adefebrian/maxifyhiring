@@ -2,73 +2,1371 @@
 @import "../../../packages/ui/src/ui.css";
 @import "../../../packages/ui/src/kit.css";
 
-/* App-specific layout only. Base reset, form controls, buttons, and the
-   Bento grid all live in packages/ui/src/ui.css so every app in the
-   product shares one system; nothing below redeclares them. */
+/* maxifyhiring: the court-docket direction (docs/design/direction.md),
+   preset D2 single_signal_ledger. App layout only: tokens, controls,
+   buttons, segmented control, and the shell come from packages/ui. Every
+   value is a token; the only raw px are structural column widths. No
+   gradient, no shadow, no side stripe, no marker dot. */
 
-.app {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: var(--space-32px) var(--space-16px);
+/* Direction knobs (contract: Accent, Accent role filled_primary). One blue
+   fills the single primary action of a view and nothing else. HSL 212,
+   6.4:1 on surface. */
+[data-direction="D2"] {
+  --color-accent: #1d5fa8;
+  --color-accent-contrast: var(--color-surface);
+  --color-primary: var(--color-accent);
+  --color-primary-contrast: var(--color-accent-contrast);
+  --color-primary-hover: color-mix(in oklab, white 8%, var(--color-accent) 92%);
+  --color-primary-active: color-mix(in oklab, white 12%, var(--color-accent) 88%);
+  --kit-action: var(--color-accent);
+  --kit-action-hover: var(--color-primary-hover);
+  --kit-action-active: var(--color-primary-active);
 }
 
-/* Anchored sections scroll inside the shell content region. */
-.app-hero, .app-bento, .app-demo { scroll-margin-top: var(--space-16px); }
+::selection {
+  background: var(--color-layer-2);
+  color: var(--color-ink);
+}
 
-.app-hero h1 {
-  font-size: var(--text-5);
-  line-height: var(--line-5);
+html {
+  accent-color: var(--color-ink);
+  caret-color: var(--color-ink);
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+a {
+  color: var(--color-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* The shell's count badge sits in the lane past the 24px icon; at 320 the
+   two-character "9+" needs the 2px inset to stay inside its pill. */
+.shell-nav-icon > .shell-badge {
+  padding-inline: var(--space-2px);
+}
+
+/* ---------------------------------------------------------------------
+ * Page frame. One column, mobile-first; content caps at 1280 (records
+ * fill), the case file caps at 880 (it is read top to bottom).
+ * ------------------------------------------------------------------- */
+.page {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-24px);
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: var(--space-24px) var(--space-16px) var(--space-48px);
+}
+
+.page > * {
+  min-width: 0;
+}
+
+.page-narrow {
+  max-width: 880px;
+}
+
+.page :where(h1, h2, h3, p, ul, ol, dl, dd, figure) {
+  margin: 0;
+}
+
+.page :where(ul, ol) {
+  padding: 0;
+  list-style: none;
+}
+
+.page h1 {
+  font-size: var(--text-4);
+  line-height: var(--line-4);
   font-weight: var(--weight-semibold);
-  margin: 0 0 var(--space-8px);
+  letter-spacing: var(--tracking-heading);
 }
 
-.app-hero p {
-  color: var(--color-ink-muted);
-  margin: 0 0 var(--space-24px);
+.page h2 {
+  font-size: var(--text-1);
+  line-height: var(--line-1);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
 }
 
-.app-bento {
-  margin-top: var(--space-24px);
+@media (min-width: 768px) {
+  .page {
+    gap: var(--space-32px);
+    padding-inline: var(--space-24px);
+  }
 }
 
-/* Three equal one-sentence facts, not a hero-plus-two layout: a 4-column
-   desktop track with one card spanning wide leaves that wide card short of
-   its narrower siblings (more width wraps less text into fewer lines), which
-   opens an empty band. Three equal columns match the content exactly, so
-   height stays even without spanning a card wider than its text needs. */
 @media (min-width: 1024px) {
-  .app-bento {
+  .page {
+    padding: var(--space-32px) var(--space-40px) var(--space-64px);
+  }
+}
+
+/* Page header: a divided section. Title and one line on the start edge,
+   the screen's secondary action on the end edge from 640px. */
+.page-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-16px);
+  align-items: end;
+  padding-bottom: var(--space-24px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page-head-text {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
+.page-line {
+  color: var(--color-ink-muted);
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .page-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Shared parts
+ * ------------------------------------------------------------------- */
+.card {
+  box-sizing: border-box;
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-12);
+  padding: var(--space-16px);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--space-24px);
+  }
+}
+
+.card-head {
+  display: grid;
+  gap: var(--space-8px);
+}
+
+.card-line {
+  color: var(--color-ink-muted);
+}
+
+.badge {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4px);
+  max-width: 100%;
+  min-width: var(--space-20px);
+  padding: var(--space-2px) var(--space-8px);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+  background: var(--color-layer-2);
+  border: 1px solid var(--color-layer-2);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.badge[data-tone="danger"] {
+  color: var(--color-danger);
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger-border);
+}
+
+.badge[data-tone="warning"] {
+  color: var(--color-warning);
+  background: var(--color-warning-surface);
+  border-color: var(--color-warning-border);
+}
+
+.badge[data-tone="success"] {
+  color: var(--color-success);
+  background: var(--color-success-surface);
+  border-color: var(--color-success-border);
+}
+
+.token {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 var(--space-6px);
+  font-family: var(--font-mono);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+  background: var(--color-layer-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-4);
+  overflow-wrap: anywhere;
+}
+
+.tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4px);
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--text-n1);
+}
+
+/* Status notice: icon, a title that names the state, tonal surface, one
+   full hairline on all four sides. */
+.notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4px) var(--space-12px);
+  align-items: start;
+  padding: var(--space-12px) var(--space-16px);
+  border: 1px solid var(--color-info-border);
+  border-radius: var(--radius-12);
+  background: var(--color-info-surface);
+}
+
+.notice[data-tone="danger"] {
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger-border);
+}
+.notice[data-tone="warning"] {
+  background: var(--color-warning-surface);
+  border-color: var(--color-warning-border);
+}
+.notice[data-tone="success"] {
+  background: var(--color-success-surface);
+  border-color: var(--color-success-border);
+}
+
+.notice-icon {
+  display: inline-flex;
+  padding-top: var(--space-2px);
+  color: var(--color-info);
+}
+.notice[data-tone="danger"] .notice-icon {
+  color: var(--color-danger);
+}
+.notice[data-tone="warning"] .notice-icon {
+  color: var(--color-warning);
+}
+.notice[data-tone="success"] .notice-icon {
+  color: var(--color-success);
+}
+
+.notice-body {
+  display: grid;
+  gap: var(--space-4px);
+  min-width: 0;
+}
+
+.notice-title {
+  font-weight: var(--weight-semibold);
+}
+
+.notice-text {
+  color: var(--color-ink-muted);
+}
+
+.notice-action {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.plain-list {
+  display: grid;
+  gap: var(--space-4px);
+}
+
+/* Due against the sim clock. Overdue is danger ink plus an icon and the
+   word, never color alone. */
+.due {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-6px);
+  min-width: 0;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.due .icon {
+  margin-top: var(--space-2px);
+}
+
+.due-at {
+  white-space: nowrap;
+}
+
+.due[data-overdue] {
+  color: var(--color-danger);
+  font-weight: var(--weight-medium);
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-8px);
+  padding: var(--space-24px);
+  color: var(--color-ink-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-12);
+}
+
+.empty-title {
+  color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.band-empty {
+  color: var(--color-ink-muted);
+}
+
+/* Skeletons: layer-2 blocks in the shape of what loads, opacity pulse only
+   (the global reduced-motion rule in ui.css stops it). */
+.skel {
+  display: block;
+  background: var(--color-layer-2);
+  border-radius: var(--radius-4);
+  animation: skel-pulse 1200ms var(--ease-standard) infinite alternate;
+}
+
+.skel-row {
+  display: grid;
+  gap: var(--space-8px);
+  padding: var(--space-16px);
+}
+
+.skel-title {
+  width: 40%;
+  height: var(--space-16px);
+}
+
+.skel-meta {
+  width: 70%;
+  height: var(--space-12px);
+}
+
+.skel-num {
+  display: inline-block;
+  width: var(--space-32px);
+  height: var(--line-3);
+}
+
+.skel-clock {
+  display: inline-block;
+  width: min(100%, 220px);
+  height: var(--line-3);
+}
+
+@keyframes skel-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}
+
+.icon-only {
+  width: var(--control-h);
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------------
+ * Records: one container, rows divided by hairlines. Rows grow from
+ * content; one fixed padding; never stretched to fill.
+ * ------------------------------------------------------------------- */
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-12);
+  overflow: clip;
+}
+
+.list > * {
+  min-width: 0;
+}
+
+.list > * + * {
+  border-top: 1px solid var(--color-border);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12px);
+  align-items: start;
+  min-height: var(--space-48px);
+  padding: var(--space-12px) var(--space-16px);
+}
+
+.row-main {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2px);
+  min-width: 0;
+}
+
+.row-title {
+  font-weight: var(--weight-medium);
+}
+
+.row-meta {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+.row-link {
+  color: var(--color-ink);
+  text-decoration: none;
+  align-items: center;
+}
+
+.row-link > .icon {
+  color: var(--color-ink-muted);
+}
+
+:is(.row-link, .rec, .stat):focus-visible {
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  :is(.row-link, .rec, .stat):hover {
+    background: var(--state-hover);
+  }
+  .link-quiet:hover {
+    text-decoration: underline;
+  }
+}
+
+:is(.row-link, .rec, .stat):active {
+  background: var(--state-pressed);
+}
+
+.link-quiet {
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------------
+ * Pipeline
+ * ------------------------------------------------------------------- */
+.stat-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  padding: 0;
+  overflow: clip;
+  background: var(--color-border);
+}
+
+.stat {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4px);
+  min-width: 0;
+  min-height: var(--control-h);
+  padding: var(--space-16px);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.stat-value {
+  font-size: var(--text-3);
+  line-height: var(--line-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-heading);
+}
+
+.stat-label {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 640px) {
+  .stat-card {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-/* The RPC demo is its own job (prove the typed client works), not another
-   stack fact, so it gets its own divided section below the bento instead of
-   a fourth tile: a hairline divider is the lightest container that still
-   reads as a separate group, and it keeps the button and result text from
-   ever reshaping the sibling tiles above. */
-.app-demo {
-  margin-top: var(--space-24px);
+@media (min-width: 1024px) {
+  .stat-card {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .stat {
+    padding: var(--space-20px) var(--space-24px);
+  }
+}
+
+.toolbar {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
   padding-top: var(--space-24px);
   border-top: 1px solid var(--color-border);
 }
 
-.app-demo h2 {
-  font-size: var(--text-1);
-  line-height: var(--line-1);
-  font-weight: var(--weight-semibold);
-  margin: 0 0 var(--space-8px);
+.toolbar-fields .field-hint {
+  display: none;
 }
 
-.app-demo > p:not(.app-demo-result) {
-  color: var(--color-ink-muted);
-  margin: 0 0 var(--space-16px);
-}
-
-.app-demo-result {
+.toolbar-count {
   min-height: var(--line-n1);
-  margin: var(--space-12px) 0 0;
   font-size: var(--text-n1);
   line-height: var(--line-n1);
   color: var(--color-ink-muted);
+}
+
+.groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-32px);
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: var(--space-12px);
+  min-width: 0;
+}
+
+.group-title,
+.sub-band h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-8px);
+}
+
+.group-count {
+  font-weight: var(--weight-regular);
+  color: var(--color-ink-muted);
+}
+
+/* A record row. Below 1024 it stacks: name and state, then owner, next
+   action, and due as one meta tier. From 1024 it is a table row with
+   column headers per group (the state badge moves to the group title). */
+.rec {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main state"
+    "owner owner"
+    "next next"
+    "due due";
+  gap: var(--space-4px) var(--space-12px);
+  align-items: start;
+  min-height: var(--control-h);
+  padding: var(--space-12px) var(--space-16px);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.rec-main {
+  grid-area: main;
+  display: grid;
+  gap: var(--space-2px);
+  min-width: 0;
+}
+
+.rec-title {
+  font-weight: var(--weight-medium);
+  color: var(--color-ink);
+}
+
+.rec-meta {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+.rec-state {
+  grid-area: state;
+  min-width: 0;
+}
+
+.rec-owner {
+  grid-area: owner;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+  min-width: 0;
+}
+
+.rec-next {
+  grid-area: next;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  min-width: 0;
+}
+
+.rec-due {
+  grid-area: due;
+  min-width: 0;
+}
+
+.rec-head {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .rec,
+  .rec-head {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 2.6fr) minmax(0, 1.8fr);
+    grid-template-areas: "main owner next due";
+    column-gap: var(--space-16px);
+  }
+  .rec {
+    min-height: var(--density-row-h);
+    padding: var(--density-row-pad-block) var(--space-16px);
+  }
+  .rec-state,
+  .rec-head > span:nth-child(2) {
+    display: none;
+  }
+  .rec-owner,
+  .rec-next {
+    font-size: var(--text-0);
+    line-height: var(--line-0);
+  }
+  .rec-head {
+    display: grid;
+    padding: var(--space-8px) var(--space-16px);
+    background: var(--color-layer-1);
+    font-size: var(--text-n1);
+    line-height: var(--line-n1);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-muted);
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Application detail (case file)
+ * ------------------------------------------------------------------- */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4px);
+  justify-self: start;
+  min-height: var(--control-h);
+  padding-inline-end: var(--space-8px);
+  color: var(--color-ink-muted);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .back-link:hover {
+    color: var(--color-ink);
+  }
+}
+
+.case-head {
+  display: grid;
+  gap: var(--space-8px);
+  padding-bottom: var(--space-24px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.case-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8px) var(--space-12px);
+}
+
+/* Below 640 the name owns its line and the state badge sits under it, so a
+   short name never squeezes into a narrow box beside the badge. */
+.case-title > h1 {
+  flex: 1 1 100%;
+}
+
+/* From 640 the name fills the row and the state badge holds its end. */
+@media (min-width: 640px) {
+  .case-title {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.case-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12px);
+  margin-top: var(--space-8px);
+}
+
+.case-meta > div,
+.fact {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2px);
+  min-width: 0;
+}
+
+:is(.case-meta, .facts) dt {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 640px) {
+  .case-meta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.4fr);
+    gap: var(--space-16px);
+  }
+}
+
+.decide-card {
+  display: grid;
+  gap: var(--space-16px);
+}
+
+.decide-form {
+  display: grid;
+  gap: var(--space-12px);
+  max-width: 640px;
+  min-width: 0;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8px);
+}
+
+.band {
+  display: grid;
+  gap: var(--space-12px);
+  min-width: 0;
+}
+
+.band-divided {
+  padding-top: var(--space-24px);
+  border-top: 1px solid var(--color-border);
+}
+
+/* The case header already ends on a hairline; a divided band right under
+   it does not draw a second one. */
+.case-head + .band-divided {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ruling {
+  display: grid;
+  gap: var(--space-8px);
+  padding: var(--space-16px);
+}
+
+.ruling-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8px);
+  align-items: start;
+}
+
+.ruling-title {
+  font-weight: var(--weight-semibold);
+}
+
+.ruling-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6px);
+  min-width: 0;
+}
+
+.ruling-reason {
+  color: var(--color-ink-muted);
+  max-width: 72ch;
+}
+
+.ruling-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6px) var(--space-12px);
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 640px) {
+  .ruling-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.facts-card {
+  display: grid;
+  gap: var(--space-16px);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-16px);
+}
+
+.fact-wide {
+  grid-column: 1 / -1;
+}
+
+.prose {
+  max-width: 68ch;
+}
+
+@media (min-width: 640px) {
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Schedule
+ * ------------------------------------------------------------------- */
+.clock-card {
+  display: grid;
+  gap: var(--space-16px);
+  align-items: center;
+}
+
+.page h2.clock-label {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--color-ink-muted);
+}
+
+.clock-read {
+  display: grid;
+  gap: var(--space-4px);
+  min-width: 0;
+}
+
+.clock-value {
+  font-size: var(--text-3);
+  line-height: var(--line-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-heading);
+}
+
+.clock-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8px);
+}
+
+.clock-steps > button {
+  width: 100%;
+  padding-inline: var(--space-8px);
+}
+
+@media (min-width: 768px) {
+  .clock-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .clock-steps {
+    grid-template-columns: repeat(3, auto);
+  }
+  .clock-steps > button {
+    padding-inline: var(--space-16px);
+  }
+}
+
+.week-card {
+  display: grid;
+  gap: var(--space-16px);
+}
+
+.week-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8px);
+  align-items: center;
+}
+
+.week-nav {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8px);
+}
+
+.week-range {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .week-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .week-range {
+    min-width: 176px;
+  }
+}
+
+.week-scroll {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-8);
+}
+
+.table {
+  width: 100%;
+  min-width: 880px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+}
+
+.table :is(th, td) {
+  padding: var(--space-8px) var(--space-12px);
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--color-border);
+}
+
+.table thead th {
+  border-top: 0;
+  background: var(--color-layer-1);
+  font-weight: var(--weight-medium);
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.table tbody th {
+  font-weight: var(--weight-regular);
+}
+
+.table thead th:first-child {
+  width: 128px;
+}
+
+@media (min-width: 1024px) {
+  .table thead th:first-child {
+    width: 176px;
+  }
+}
+
+.cell-title {
+  display: block;
+  font-size: var(--text-0);
+  line-height: var(--line-0);
+  font-weight: var(--weight-medium);
+}
+
+.cell-meta,
+.cell-free {
+  display: block;
+  color: var(--color-ink-subtle);
+}
+
+.slots {
+  display: grid;
+  gap: var(--space-4px);
+}
+
+.slots:empty {
+  display: none;
+}
+
+.slot {
+  display: grid;
+  gap: 0;
+  padding: var(--space-4px) var(--space-8px);
+  border-radius: var(--radius-4);
+  border: 1px solid var(--color-layer-2);
+  background: var(--color-layer-2);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.slot[data-kind="interview"] {
+  min-height: var(--control-h);
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+}
+
+.slot[data-status="done"] {
+  background: var(--color-success-surface);
+  border-color: var(--color-success-border);
+}
+
+.slot[data-status="no_show"] {
+  background: var(--color-danger-surface);
+  border-color: var(--color-danger-border);
+}
+
+.slot-label {
+  font-weight: var(--weight-medium);
+}
+
+.slot-time {
+  color: var(--color-ink-muted);
+}
+
+@media (hover: hover) {
+  a.slot:hover {
+    background: var(--state-hover);
+  }
+}
+
+.sub-band {
+  display: grid;
+  gap: var(--space-12px);
+  min-width: 0;
+}
+
+.band-stack {
+  gap: var(--space-32px);
+}
+
+/* ---------------------------------------------------------------------
+ * Decisions queue and the decide sheet
+ * ------------------------------------------------------------------- */
+.queue-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12px);
+  padding: var(--space-16px);
+}
+
+.queue-main {
+  display: grid;
+  gap: var(--space-4px);
+  min-width: 0;
+}
+
+.queue-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8px);
+}
+
+.queue-next {
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+}
+
+@media (min-width: 640px) {
+  .queue-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+/* Native dialog: a bottom sheet below 640px, a centred dialog from 640px.
+   Surface plus a border-strong hairline over the scrim, never a shadow.
+   Opens with opacity and a 0.98 scale at 200ms, closes at 140ms. */
+.sheet {
+  box-sizing: border-box;
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 90dvh;
+  margin: 0;
+  padding: 0 0 env(safe-area-inset-bottom);
+  overflow: auto;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-28) var(--radius-28) 0 0;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--dur-200-exit, 140ms) var(--ease-standard),
+    transform var(--dur-200-exit, 140ms) var(--ease-standard),
+    overlay var(--dur-200-exit, 140ms) allow-discrete,
+    display var(--dur-200-exit, 140ms) allow-discrete;
+}
+
+.sheet:not([open]) {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.sheet[open] {
+  transition-duration: var(--dur-200);
+}
+
+@starting-style {
+  .sheet[open] {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+.sheet::backdrop {
+  background: var(--color-scrim);
+}
+
+.sheet-inner {
+  display: grid;
+  gap: var(--space-16px);
+  padding: var(--space-24px) var(--space-16px);
+}
+
+.sheet-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12px);
+  align-items: start;
+}
+
+.sheet-head-text {
+  display: grid;
+  gap: var(--space-8px);
+  min-width: 0;
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: var(--text-2);
+  line-height: var(--line-2);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
+}
+
+.sheet p {
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .sheet {
+    inset: 0;
+    width: min(560px, 100% - 48px);
+    height: fit-content;
+    margin: auto;
+    border-radius: var(--radius-16);
+    padding: 0;
+  }
+  .sheet-inner {
+    padding: var(--space-24px);
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Audit
+ * ------------------------------------------------------------------- */
+.more {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12px);
+  align-items: center;
+}
+
+.audit-tools {
+  display: grid;
+  gap: var(--space-16px);
+}
+
+.audit-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-16px);
+  align-items: start;
+}
+
+/* Segmented filter (core.segmented): separate 44px segments 4px apart,
+   each with its own full border, so no segment overlaps its neighbour.
+   Pressed is the tonal layer-2 fill, ink border, and weight 600. */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4px);
+  min-width: 0;
+}
+
+.seg-item {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: var(--space-12px);
+}
+
+.seg-item[aria-pressed="true"] {
+  background: var(--color-layer-2);
+  border-color: var(--color-ink);
+  font-weight: var(--weight-semibold);
+}
+
+@media (hover: hover) {
+  .seg-item[aria-pressed="true"]:hover {
+    background: var(--color-layer-2);
+  }
+}
+
+.audit-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12px);
+  align-items: center;
+  padding-top: var(--space-16px);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (min-width: 768px) {
+  .audit-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .audit-filters > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .audit-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .audit-filters > :last-child {
+    grid-column: auto;
+  }
+}
+
+.audit-head {
+  display: none;
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "who who"
+    "stage stage"
+    "by stamp"
+    "conf conf"
+    "reason reason";
+  gap: var(--space-6px) var(--space-8px);
+  justify-items: start;
+  align-items: start;
+  padding: var(--space-12px) var(--space-16px);
+}
+
+.audit-row > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.audit-who {
+  grid-area: who;
+  display: grid;
+  gap: 0;
+}
+
+.audit-stage {
+  grid-area: stage;
+  font-weight: var(--weight-medium);
+}
+
+.audit-stage .audit-label {
+  display: none;
+}
+
+.audit-by {
+  grid-area: by;
+}
+
+.audit-stamp {
+  grid-area: stamp;
+}
+
+.audit-conf {
+  grid-area: conf;
+  font-size: var(--text-n1);
+  line-height: var(--line-n1);
+  color: var(--color-ink-muted);
+}
+
+.audit-reason {
+  grid-area: reason;
+  display: grid;
+  gap: var(--space-6px);
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 1024px) {
+  .audit-head,
+  .audit-row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) 72px 184px 88px minmax(0, 3fr);
+    grid-template-areas: "who stage by stamp conf reason";
+    column-gap: var(--space-16px);
+  }
+  .audit-head {
+    display: grid;
+    padding: var(--space-8px) var(--space-16px);
+    background: var(--color-layer-1);
+    font-size: var(--text-n1);
+    line-height: var(--line-n1);
+    font-weight: var(--weight-medium);
+    color: var(--color-ink-muted);
+  }
+  .audit-row {
+    padding: var(--density-row-pad-block) var(--space-16px);
+  }
+  .audit-stage {
+    font-weight: var(--weight-regular);
+  }
+  .audit-label {
+    display: none;
+  }
+  .audit-conf {
+    font-size: var(--text-0);
+    line-height: var(--line-0);
+    color: var(--color-ink);
+  }
+  .num-col {
+    justify-self: end;
+    text-align: end;
+  }
+  .audit-conf {
+    padding-inline-end: var(--space-16px);
+  }
 }

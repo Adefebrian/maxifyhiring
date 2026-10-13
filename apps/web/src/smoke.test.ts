@@ -60,11 +60,11 @@ describe.skipIf(!chromePath)("smoke: built SPA renders", () => {
     GlobalRegistrator.register();
   });
 
-  test("renders the welcome heading", async () => {
+  test("renders the Pipeline screen", async () => {
     const page = await browser.newPage();
     await page.goto(`http://localhost:${server.port}`, { waitUntil: "networkidle0" });
     const heading = await page.$eval("h1", (el) => el.textContent);
-    expect(heading).toContain("Welcome to maxifyhiring");
+    expect(heading).toBe("Pipeline");
     await page.close();
   });
 });
