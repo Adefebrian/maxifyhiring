@@ -49,13 +49,14 @@ function band(total: number): Route {
   return "auto_rejected";
 }
 
-/** Why this case is a soft call, or null when the rule band is clear. */
+/** Why this case is a soft call (every signal, so the audit reason hides none), or null when the rule band is clear. */
 export function softSignal(s: Score, c: ScoreInput, role: Role): string | null {
+  const reasons: string[] = [];
   const edge = Object.entries(BANDS).find(([, t]) => Math.abs(s.total - t) <= EDGE);
-  if (edge) return `score ${s.total} within ${EDGE} of the ${edge[1]} threshold`;
-  if (s.mustMissing.length === 0 && c.yearsExp < role.minYears - 1) return "all must-have skills but well under the experience bar";
-  if (c.yearsExp >= role.minYears * 2 && s.mustMatched.length / Math.max(1, role.mustHave.length) < 0.5) return "very experienced but under half the must-have skills";
-  return null;
+  if (edge) reasons.push(`score ${s.total} within ${EDGE} of the ${edge[1]} threshold`);
+  if (s.mustMissing.length === 0 && c.yearsExp < role.minYears - 1) reasons.push("conflicting data: all must-have skills but well under the experience bar");
+  if (c.yearsExp >= role.minYears * 2 && s.mustMatched.length / Math.max(1, role.mustHave.length) < 0.5) reasons.push("conflicting data: very experienced but under half the must-have skills");
+  return reasons.length ? reasons.join("; ") : null;
 }
 
 export async function route(c: ScoreInput, role: Role, jev: JevOptions): Promise<{ score: Score; decision: Decision<Route> }> {

@@ -48,12 +48,31 @@ export function wipe(db: Database): void {
   })();
 }
 
+/**
+ * Import a batch in submission order. Replaying the same batch after an
+ * interrupted import skips every record whose source ref is already stored,
+ * so a restart never creates a second application for the same row.
+ */
+export async function importBatch(deps: PipelineDeps, apps: unknown[]): Promise<{ imported: number; skipped: number }> {
+  const ordered = [...(apps as { ref?: string; submitted_at?: string }[])].sort((a, b) => String(a.submitted_at ?? "").localeCompare(String(b.submitted_at ?? "")));
+  let imported = 0;
+  let skipped = 0;
+  for (const raw of ordered) {
+    const known = raw.ref ? deps.db.query<{ id: string }, { ref: string }>("SELECT id FROM applications WHERE source_ref = $ref").get({ ref: raw.ref }) : null;
+    if (known) {
+      skipped++;
+      continue;
+    }
+    await intake(deps, raw);
+    imported++;
+  }
+  return { imported, skipped };
+}
+
 /** Wipe, load reference data, and run the whole seed batch through the pipeline. */
 export async function reset(deps: PipelineDeps): Promise<{ processed: number }> {
   wipe(deps.db);
   await seedReference(deps.db);
-  const apps = (await seedApplications()) as { submitted_at?: string }[];
-  const ordered = [...apps].sort((a, b) => String(a.submitted_at ?? "").localeCompare(String(b.submitted_at ?? "")));
-  for (const raw of ordered) await intake(deps, raw);
-  return { processed: ordered.length };
+  const { imported } = await importBatch(deps, await seedApplications());
+  return { processed: imported };
 }

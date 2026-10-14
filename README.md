@@ -7,7 +7,7 @@ every routing decision stores an audit reason. JEV (TypeSafe systemone) judges
 the soft calls; without it the pipeline falls back to rules and stamps the
 decision `UNVERIFIED BY JEV`.
 
-Product spec: [docs/PRD.md](docs/PRD.md). Design direction: [docs/design/direction.md](docs/design/direction.md).
+Product spec: [docs/PRD.md](docs/PRD.md). Reliability: [docs/RELIABILITY.md](docs/RELIABILITY.md). Eval report: [apps/api/evals/report.md](apps/api/evals/report.md). Design direction: [docs/design/direction.md](docs/design/direction.md).
 
 ## Run locally
 
@@ -52,15 +52,18 @@ candidate who misses an interview once and one who misses twice, two candidates
 whose availability has no free slot), 4 roles (one closed), 6 interviewers with
 busy calendars.
 
-## Tests
+## Tests and evals
 
 ```bash
-cd apps/api && bun test     # unit suite + reliability harness F1-F8
+cd apps/api && bun test     # unit suite + reliability harness F1-F9
+cd apps/api && bun run eval # 40 labelled outcomes + crash/recovery replay -> evals/report.md
 cd apps/web && bun test
 bun run build && bun run check:boundaries
 ```
 
-`apps/api/src/reliability/` covers eight failure types: JEV unavailable, JEV bad
-answer, malformed intake, duplicate race, scheduling conflict, crash mid-pipeline,
-illegal transition or bad human input, and LLM failure. Every scenario ends with
+`apps/api/src/reliability/` covers nine failure types: tool unavailable or timing
+out, tool returning bad output, missing fields and malformed input, duplicates
+under concurrency, scheduling clashes, interrupted processing, illegal transitions
+or bad human input, LLM failure, and conflicting data. See
+[docs/RELIABILITY.md](docs/RELIABILITY.md). Every scenario ends with
 `checkInvariants()` (also served at `GET /api/health/invariants`).

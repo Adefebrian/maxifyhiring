@@ -1,0 +1,246 @@
+[
+ {
+  "ref": "WEB-1001",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1002",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1003",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1004",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1005",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1006",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1007",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1027",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1028",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1029",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1033",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1034",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1035",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1038",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1039",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1040",
+  "label": "complete, clear fit",
+  "state": "interview_scheduled"
+ },
+ {
+  "ref": "WEB-1008",
+  "label": "complete, clear miss",
+  "state": "auto_rejected"
+ },
+ {
+  "ref": "WEB-1036",
+  "label": "complete, clear miss",
+  "state": "auto_rejected"
+ },
+ {
+  "ref": "WEB-1011",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "EMAIL_FORMAT"
+  ]
+ },
+ {
+  "ref": "WEB-1012",
+  "label": "incomplete",
+  "state": "invalid",
+  "codes": [
+   "REQUIRED_PHONE"
+  ]
+ },
+ {
+  "ref": "WEB-1013",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "ROLE_UNKNOWN"
+  ]
+ },
+ {
+  "ref": "WEB-1014",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "ROLE_CLOSED"
+  ]
+ },
+ {
+  "ref": "WEB-1015",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "EXPERIENCE_INVALID"
+  ]
+ },
+ {
+  "ref": "WEB-1016",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "EXPERIENCE_INVALID"
+  ]
+ },
+ {
+  "ref": "WEB-1017",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "SUBMITTED_IN_FUTURE"
+  ]
+ },
+ {
+  "ref": "WEB-1018",
+  "label": "incomplete",
+  "state": "invalid",
+  "codes": [
+   "CV_MISSING",
+   "CONSENT_MISSING"
+  ]
+ },
+ {
+  "ref": "WEB-1019",
+  "label": "invalid",
+  "state": "invalid",
+  "codes": [
+   "PHONE_FORMAT"
+  ]
+ },
+ {
+  "ref": "WEB-1020",
+  "label": "exact duplicate",
+  "state": "duplicate",
+  "duplicateOfRef": "WEB-1001",
+  "ruleHit": "DUP_EXACT_EMAIL_ROLE"
+ },
+ {
+  "ref": "WEB-1021",
+  "label": "exact duplicate",
+  "state": "duplicate",
+  "duplicateOfRef": "WEB-1002",
+  "ruleHit": "DUP_EXACT_EMAIL_ROLE"
+ },
+ {
+  "ref": "WEB-1022",
+  "label": "exact duplicate",
+  "state": "duplicate",
+  "duplicateOfRef": "WEB-1003",
+  "ruleHit": "DUP_EXACT_EMAIL_ROLE"
+ },
+ {
+  "ref": "WEB-1023",
+  "label": "possible duplicate",
+  "state": "human_review",
+  "ruleHit": "DUP_SAME_PHONE"
+ },
+ {
+  "ref": "WEB-1024",
+  "label": "possible duplicate",
+  "state": "human_review",
+  "ruleHit": "DUP_SAME_PHONE"
+ },
+ {
+  "ref": "WEB-1025",
+  "label": "possible duplicate",
+  "state": "human_review",
+  "ruleHit": "DUP_NAME_SIMILAR"
+ },
+ {
+  "ref": "WEB-1026",
+  "label": "same email, other role (not a duplicate)",
+  "state": "human_review",
+  "ruleHit": "SOFT_CALL"
+ },
+ {
+  "ref": "WEB-1009",
+  "label": "borderline routing",
+  "state": "human_review",
+  "ruleHit": "SOFT_CALL"
+ },
+ {
+  "ref": "WEB-1010",
+  "label": "borderline routing",
+  "state": "human_review",
+  "ruleHit": "SOFT_CALL"
+ },
+ {
+  "ref": "WEB-1031",
+  "label": "borderline routing",
+  "state": "human_review",
+  "ruleHit": "SOFT_CALL"
+ },
+ {
+  "ref": "WEB-1030",
+  "label": "conflicting data",
+  "state": "human_review",
+  "ruleHit": "SOFT_CALL"
+ },
+ {
+  "ref": "WEB-1032",
+  "label": "scheduling clash (no slot)",
+  "state": "human_review",
+  "ruleHit": "NO_SLOT"
+ },
+ {
+  "ref": "WEB-1037",
+  "label": "scheduling clash (no slot)",
+  "state": "human_review",
+  "ruleHit": "NO_SLOT"
+ }
+]

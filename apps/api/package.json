@@ -9,7 +9,8 @@
     "start": "bun --env-file=../../.env src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'no lint configured for apps/api' && exit 0"
+    "lint": "echo 'no lint configured for apps/api' && exit 0",
+    "eval": "bun evals/run.ts"
   },
   "dependencies": {
     "@maxifyhiring/config": "workspace:*",

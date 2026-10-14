@@ -679,3 +679,37 @@ describe("F8 LLM summary failure never changes routing", () => {
     expect(routing(d.db)).toEqual(await noLlmRouting());
   });
 });
+
+describe("F9 conflicting data: contradictory signals are never auto-decided", () => {
+  const lastDecision = (db: Database, id: string) =>
+    db.query<{ decided_by: string; decision: string; reason: string; rule_hits: string }, { id: string }>("SELECT * FROM routing_decisions WHERE app_id = $id ORDER BY id DESC LIMIT 1").get({ id })!;
+
+  test("twelve years of experience but under half the must-have skills goes to a person", async () => {
+    const d = deps();
+    await seedReference(d.db);
+    const a = await intake(d, applicant({ years_experience: 12, skills: ["java", "postgres"] }));
+    expect(a.state).toBe("human_review");
+    const last = lastDecision(d.db, a.id);
+    expect(JSON.parse(last.rule_hits)).toContain("SOFT_CALL");
+    expect(last.reason).toContain("very experienced but under half the must-have skills");
+  });
+
+  test("every must-have skill but well under the experience bar goes to a person", async () => {
+    const d = deps();
+    await seedReference(d.db);
+    const a = await intake(d, applicant({ years_experience: 1, skills: ["typescript", "postgres", "api design", "testing"] }));
+    expect(a.state).toBe("human_review");
+    expect(lastDecision(d.db, a.id).reason).toContain("well under the experience bar");
+  });
+
+  test("same phone, different person: a conflicting identity is reviewed, never merged on its own", async () => {
+    const d = deps();
+    await seedReference(d.db);
+    const first = await intake(d, applicant({ full_name: "Dian Puspita", phone: "0813-9000-1005" }));
+    const second = await intake(d, applicant({ full_name: "Dimas Anggara", phone: "0813 9000 1005" }));
+    expect(first.state).not.toBe("duplicate");
+    expect(second.state).toBe("human_review");
+    expect(second.duplicate_of).toBeNull();
+    expect(JSON.parse(lastDecision(d.db, second.id).rule_hits)).toContain("DUP_SAME_PHONE");
+  });
+});

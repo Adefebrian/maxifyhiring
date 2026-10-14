@@ -6,7 +6,7 @@ export { checkInvariants } from "./invariants";
 export type { InvariantReport } from "./invariants";
 export { intake, process, runAll, RECRUITER } from "./runner";
 export type { PipelineDeps, Summarize } from "./runner";
-export { reset, seedReference, wipe } from "./seed";
+export { importBatch, reset, seedApplications, seedReference, wipe } from "./seed";
 export { advance } from "./sim";
 export { decide, allowedActions } from "./decisions";
 export { STATES, TRANSITIONS, IllegalTransition, canTransition } from "./states";
